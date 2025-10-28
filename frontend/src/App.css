@@ -1,0 +1,129 @@
+.layout {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.header {
+  background: #355e3b !important;
+  padding: 0 50px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+}
+
+.header-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.header-content .ant-tag {
+  position: absolute;
+  right: 0;
+}
+
+.content {
+  padding: 40px 50px;
+  max-width: 1800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.main-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+
+.info-section {
+  padding: 0 0 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.progress-card {
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 8px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.button-group {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Custom scrollbar for table */
+.ant-table-body::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ant-table-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 20px;
+  }
+  
+  .content {
+    padding: 20px;
+  }
+  
+  .button-group {
+    flex-direction: column;
+  }
+  
+  .button-group button {
+    width: 100%;
+  }
+}
+
+/* Input and Select styling */
+.ant-input, .ant-select-selector {
+  border-radius: 6px;
+}
+
+.ant-input:focus, .ant-select-focused .ant-select-selector {
+  border-color: #355e3b;
+  box-shadow: 0 0 0 2px rgba(53, 94, 59, 0.1);
+}
+
+/* Button styling */
+.ant-btn-primary {
+  background: #355e3b;
+  border-color: #355e3b;
+}
+
+.ant-btn-primary:hover {
+  background: #2a4a2f;
+  border-color: #2a4a2f;
+}
+
+/* Table header styling */
+.ant-table-thead > tr > th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #355e3b;
+}
