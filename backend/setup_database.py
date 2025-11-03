@@ -12,42 +12,79 @@ DB_PASSWORD = "Yash@8855"
 DB_NAME = "dna_automation"
 
 # Model mapping (model_id to model_names)
+# Format: "model_name": "model_id" where model_name is what users select, model_id is used in automation
 model_mapping = {
-    "23_OSCS_GMT9_T09": "G95SC,G95SD,S90PC",
-    "23_OSCS_SMT9_T09": "S90PC",
-    "23_PTML_SMT7_T09": "M70C",
-    "23_PTML_SMT8_T09": "M80C",
-    "23_OSCP_GMT9_T09": "G97NC",
-    "23_NKL_SMT5_T09": "M50C",
-    "23_KSUE_UB_BIZ_T09": "BEC-H",
-    "23_PTM_LTR_T09": "LST7C, LST9C",
-    "24_RSP_GMT8_T09": "G80SD",
-    "24_RSP_GMT8_AT_T09": "G80SD_AT",
-    "24_PTML_GMT8_T09": "G85SD",
-    "24_PTML_GMT7_T09": "G70D",
-    "24_PTML_GMT8_AT_T09": "G85SD_AT",
-    "24_PTML_GMT7_AT_T09": "G70D_AT",
-    "24_PTML_SMT8_T09": "M80D",
-    "24_NKL_SMT7_T09": "M70D,M70DO,M1ED,M1EDO",
-    "24_PTML_SMT8_AT_T09": "M80D_AT",
-    "24_NKL_SMT7_AT_T09": "M70D_AT",
-    "24_NKL_SM5_T09": "M50D",
-    "25_RSP_SM9": "M90SF_P",
-    "25_PTM_SMT8": "M80F",
-    "25_RSL_SMT7": "M70F",
-    "25_RSM_SMT9": "M90SF",
+    # T09 Models - 2023 Series
+    "23_OSCP_GMT9_T09": "G97NC_T09",
+    "23_OSCS_GMT9_T09": "G95SC/SD_T09",
+    "23_OSCS_SMT9_T09": "S90PC_T09",
+    "23_PTML_SMT7_T09": "M70C_T09",
+    "23_PTML_SMT8_T09": "M80C_T09",
+    "23_NKL_SMT5_T09": "M50C_T09",
+    
+    # T10 Models - 2023 Series
+    "23_OSCP_GM9_T10": "G97NC_T10",
+    "23_OSCS_GM9_T10": "G95SC/SD_T10",
+    "23_OSCS_SM9_T10": "S90PC_T10",
+    "23_PTML_SM7_T10": "M70C_T10",
+    "23_PTML_SM8_T10": "M80C_T10",
+    "23_NKL_SM5_T10": "M50C_T10",
+    
+    # T09 Models - 2025 Series
+    "25_PTM_MSC": "LSM7F_T09",
+    "25_PTM_SMT8": "M80F_T09",
+    "25_RSL_SMT7": "M70F_T09",
+    "25_RSM_SMT9": "M90SF_T09",
+    "25_RSP_SM9": "M90SF_P_T09",
+    "25_RSSF_SMT5": "M50F_T09",
+    
+    # T10 Models - 2025 Series
+    "25_PTM_MSC_T10": "LSM7F_T10",
+    "25_PTM_SM8_T10": "M80F_T10",
+    "25_RSL_SM7_T10": "M70F_T10",
+    "25_RSM_SM9_T10": "M90SF_T10",
+    "25_RSP_SM9_T10": "M90SF_P_T10",
+    "25_RSSF_SM5_T10": "M50F_T10",
+    
+    # T09 Models - 2024 Series
+    "24_NKL_SM5_T09": "M50D_T09",
+    "24_NKL_SMT7_T09": "M70D_T09,M70DO_T09,M1ED_T09,M1EDO_T09",
+    "24_NKL_SMT7_AT_T09": "M70D_AT_T09",
+    "24_PTML_GMT7_T09": "G70D_T09",
+    "24_PTML_GMT7_AT_T09": "G70D_AT_T09",
+    "24_PTML_GMT8_T09": "G85SD_T09",
+    "24_PTML_GMT8_AT_T09": "G85SD_AT_T09",
+    "24_PTML_SMT8_T09": "M80D_T09",
+    "24_PTML_SMT8_AT_T09": "M80D_AT_T09",
+    
+    # T10 Models - 2024 Series
+    "24_NKL_SM5_T10": "M50D_T10",
+    "24_NKL_SM7_T10": "M70D_T10,M70DO_T10,M1ED_T10,M1EDO_T10",
+    "24_NKL_SM7_T10_AT": "M70D_AT_T10",
+    "24_PTML_GM7_T10": "G70D_T10",
+    "24_PTML_GM7_T10_AT": "G70D_AT_T10",
+    "24_PTML_GM8_T10": "G85SD_T10",
+    "24_PTML_GM8_T10_AT": "G85SD_AT_T10",
+    "24_PTML_SM8_T10": "M80D_T10",
+    "24_PTML_SM8_T10_AT": "M80D_AT_T10",
 }
 
 def extract_model_name_to_id_mapping():
-    """Extract model name to model ID mapping."""
+    """Extract model name to model ID mapping for database storage.
+    
+    Users will select by display name (e.g., 'G97NC_T09'), 
+    and the system will use the model_id (e.g., '23_OSCP_GMT9_T09') for automation.
+    """
     model_data = []
-    for model_id, names_str in model_mapping.items():
-        # Split by comma and strip whitespace
-        names = [name.strip() for name in names_str.split(',')]
-        for model_name in names:
+    for model_id, display_names_str in model_mapping.items():
+        # model_id is the key (e.g., '23_OSCP_GMT9_T09')
+        # display_names_str is the value (e.g., 'G97NC_T09')
+        # Split by comma and strip whitespace to handle multiple names
+        display_names = [name.strip() for name in display_names_str.split(',')]
+        for display_name in display_names:
             model_data.append({
-                'model_name': model_name,
-                'model_id': model_id
+                'model_name': display_name,  # What users select (e.g., 'G97NC_T09')
+                'model_id': model_id  # What system uses (e.g., '23_OSCP_GMT9_T09')
             })
     return sorted(model_data, key=lambda x: x['model_name'])
 
@@ -166,13 +203,13 @@ def display_model_names(connection):
         cursor.execute("SELECT model_name, model_id FROM model_names ORDER BY model_name")
         
         results = cursor.fetchall()
-        print(f"\n✓ Total Model Name-ID Mappings: {len(results)}")
-        print("-" * 70)
-        print(f"{'#':<4} {'Model Name':<20} {'Model ID':<30}")
-        print("-" * 70)
+        print(f"\n\u2713 Total Model Name-ID Mappings: {len(results)}")
+        print("-" * 80)
+        print(f"{'#':<4} {'Model Name (User Selects)':<30} {'Model ID (System Uses)':<40}")
+        print("-" * 80)
         for idx, (model_name, model_id) in enumerate(results, 1):
-            print(f"{idx:<4} {model_name:<20} {model_id:<30}")
-        print("-" * 70)
+            print(f"{idx:<4} {model_name:<30} {model_id:<40}")
+        print("-" * 80)
         
         cursor.close()
     except Error as e:

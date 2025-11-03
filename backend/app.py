@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import re
 import os
@@ -19,9 +19,18 @@ import mysql.connector
 from mysql.connector import Error
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+import io
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+
+# Store the latest processed data in memory
+latest_data = {
+    'master_df': None,
+    'excel_bytes': None,
+    'statistics': None
+}
 
 # Constants
 driver_path = r"C:\Users\yash.v1\Documents\Web Scapping Project\edgedriver_win64\msedgedriver.exe"
@@ -38,31 +47,61 @@ DB_USER = "root"
 DB_PASSWORD = "Yash@8855"
 DB_NAME = "dna_automation"
 
-# Dictionary to store Model_name and its corresponding Model_id 
+# Dictionary to store Model_name (Model ID key from system) and its corresponding display name
 model_dict = {
-    "23_OSCS_GMT9_T09": "G95SC,G95SD,S90PC",
-    "23_OSCS_SMT9_T09": "S90PC",
-    "23_PTML_SMT7_T09": "M70C",
-    "23_PTML_SMT8_T09": "M80C",
-    "23_OSCP_GMT9_T09": "G97NC",
-    "23_NKL_SMT5_T09": "M50C",
-    "23_KSUE_UB_BIZ_T09": "BEC-H",
-    "23_PTM_LTR_T09": "LST7C, LST9C",
-    "24_RSP_GMT8_T09": "G80SD",
-    "24_RSP_GMT8_AT_T09": "G80SD_AT",
-    "24_PTML_GMT8_T09": "G85SD",
-    "24_PTML_GMT7_T09": "G70D",
-    "24_PTML_GMT8_AT_T09": "G85SD_AT",
-    "24_PTML_GMT7_AT_T09": "G70D_AT",
-    "24_PTML_SMT8_T09": "M80D",
-    "24_NKL_SMT7_T09": "M70D,M70DO,M1ED,M1EDO",
-    "24_PTML_SMT8_AT_T09": "M80D_AT",
-    "24_NKL_SMT7_AT_T09": "M70D_AT",        
-    "24_NKL_SM5_T09": "M50D",
-    "25_RSP_SM9": "M90SF_P",
-    "25_PTM_SMT8": "M80F",
-    "25_RSL_SMT7": "M70F",
-    "25_RSM_SMT9": "M90SF",
+    # T09 Models - 2023 Series
+    "23_OSCP_GMT9_T09": "G97NC_T09",
+    "23_OSCS_GMT9_T09": "G95SC/SD_T09",
+    "23_OSCS_SMT9_T09": "S90PC_T09",
+    "23_PTML_SMT7_T09": "M70C_T09",
+    "23_PTML_SMT8_T09": "M80C_T09",
+    "23_NKL_SMT5_T09": "M50C_T09",
+    
+    # T10 Models - 2023 Series
+    "23_OSCP_GM9_T10": "G97NC_T10",
+    "23_OSCS_GM9_T10": "G95SC/SD_T10",
+    "23_OSCS_SM9_T10": "S90PC_T10",
+    "23_PTML_SM7_T10": "M70C_T10",
+    "23_PTML_SM8_T10": "M80C_T10",
+    "23_NKL_SM5_T10": "M50C_T10",
+    
+    # T09 Models - 2025 Series
+    "25_PTM_MSC": "LSM7F_T09",
+    "25_PTM_SMT8": "M80F_T09",
+    "25_RSL_SMT7": "M70F_T09",
+    "25_RSM_SMT9": "M90SF_T09",
+    "25_RSP_SM9": "M90SF_P_T09",
+    "25_RSSF_SMT5": "M50F_T09",
+    
+    # T10 Models - 2025 Series
+    "25_PTM_MSC_T10": "LSM7F_T10",
+    "25_PTM_SM8_T10": "M80F_T10",
+    "25_RSL_SM7_T10": "M70F_T10",
+    "25_RSM_SM9_T10": "M90SF_T10",
+    "25_RSP_SM9_T10": "M90SF_P_T10",
+    "25_RSSF_SM5_T10": "M50F_T10",
+    
+    # T09 Models - 2024 Series
+    "24_NKL_SM5_T09": "M50D_T09",
+    "24_NKL_SMT7_T09": "M70D_T09,M70DO_T09,M1ED_T09,M1EDO_T09",
+    "24_NKL_SMT7_AT_T09": "M70D_AT_T09",
+    "24_PTML_GMT7_T09": "G70D_T09",
+    "24_PTML_GMT7_AT_T09": "G70D_AT_T09",
+    "24_PTML_GMT8_T09": "G85SD_T09",
+    "24_PTML_GMT8_AT_T09": "G85SD_AT_T09",
+    "24_PTML_SMT8_T09": "M80D_T09",
+    "24_PTML_SMT8_AT_T09": "M80D_AT_T09",
+    
+    # T10 Models - 2024 Series
+    "24_NKL_SM5_T10": "M50D_T10",
+    "24_NKL_SM7_T10": "M70D_T10,M70DO_T10,M1ED_T10,M1EDO_T10",
+    "24_NKL_SM7_T10_AT": "M70D_AT_T10",
+    "24_PTML_GM7_T10": "G70D_T10",
+    "24_PTML_GM7_T10_AT": "G70D_AT_T10",
+    "24_PTML_GM8_T10": "G85SD_T10",
+    "24_PTML_GM8_T10_AT": "G85SD_AT_T10",
+    "24_PTML_SM8_T10": "M80D_T10",
+    "24_PTML_SM8_T10_AT": "M80D_AT_T10",
 }
 
 exception_app_names = {
@@ -204,6 +243,27 @@ def compute_state_value(master_df):
             print(f"Row {index}: No valid version data -> State Value = 0")
     
     return master_df
+
+
+def get_row_color(state_value):
+    """
+    Get background color based on State Value.
+    
+    Colors:
+    - 0: Medium Green
+    - 1: Gray
+    - 2.1: Yellow
+    - 2.2: Orange
+    - 3: Medium Red
+    """
+    colors = {
+        0.0: "#90EE90",  # Medium Green
+        1.0: "#D3D3D3",  # Gray
+        2.1: "#FFFF00",  # Yellow
+        2.2: "#FFA500",  # Orange
+        3.0: "#CD5C5C"   # Medium Red
+    }
+    return colors.get(state_value, "#FFFFFF")
 
 
 def apply_row_colors(excel_file_path):
@@ -381,9 +441,9 @@ def run_automation(rows_data):
                         if app_owner_value != "None" and app_owner_value or any(app_name.startswith(exception) for exception in exception_app_names):
                             unique_app_names.add(app_name)
 
-            # Create Master Excel
+            # Create Master Excel in temporary directory
             app_names_df = pd.DataFrame(unique_app_names, columns=["App Name"])
-            master_excel_file = os.path.join(download_dir, "master_Excel.xlsx")
+            master_excel_file = os.path.join(temp_dir, "master_Excel.xlsx")
             app_names_df.to_excel(master_excel_file, index=False)
             print(f"Master Excel file created at: {master_excel_file}")
 
@@ -433,11 +493,29 @@ def run_automation(rows_data):
             # Apply row colors based on State Value
             print("\nApplying row colors...")
             apply_row_colors(master_excel_file)
+            
+            # Read Excel file as bytes for download
+            with open(master_excel_file, 'rb') as f:
+                excel_bytes = f.read()
+            
+            # Calculate statistics
+            state_counts = master_df['State Value'].value_counts().sort_index()
+            statistics = {
+                'state_0_count': int(state_counts.get(0.0, 0)),
+                'state_1_count': int(state_counts.get(1.0, 0)),
+                'state_21_count': int(state_counts.get(2.1, 0)),
+                'state_22_count': int(state_counts.get(2.2, 0)),
+                'total_rows': len(master_df),
+                'total_columns': len(master_df.columns)
+            }
+            
+            # Store in global variable for access by other endpoints
+            global latest_data
+            latest_data['master_df'] = master_df
+            latest_data['excel_bytes'] = excel_bytes
+            latest_data['statistics'] = statistics
 
-            # Open the file
-            subprocess.Popen([master_excel_file], shell=True)
-
-            return True
+            return True, master_df, excel_bytes, statistics
 
         except Exception as e:
             print(f"Error in automation: {str(e)}")
@@ -559,12 +637,29 @@ def run_automation_endpoint():
             processed_rows.append(processed_row)
         
         # Run the automation with converted model IDs
-        success = run_automation(processed_rows)
+        success, master_df, excel_bytes, statistics = run_automation(processed_rows)
         
         if success:
+            # Convert DataFrame to JSON-serializable format with color information
+            data_dict = master_df.to_dict('records')
+            
+            # Add color information to each row
+            for row in data_dict:
+                state_value = row.get('State Value')
+                row['row_color'] = get_row_color(state_value)
+                # Format State Value to show 2.1 instead of 2.1000
+                if pd.notna(state_value):
+                    row['State Value'] = float(state_value)
+            
+            # Convert column names to list
+            columns = master_df.columns.tolist()
+            
             return jsonify({
                 "success": True,
-                "message": "Automation completed successfully. Master Excel file has been created."
+                "message": "Automation completed successfully. Master Excel file has been created.",
+                "data": data_dict,
+                "columns": columns,
+                "statistics": statistics
             })
         else:
             return jsonify({
@@ -579,6 +674,87 @@ def run_automation_endpoint():
             "success": False,
             "message": f"An error occurred: {str(e)}"
         }), 500
+
+@app.route('/api/download-excel', methods=['GET'])
+def download_excel():
+    """
+    Endpoint to download the generated Master Excel file.
+    
+    Returns:
+        Excel file as attachment
+    """
+    try:
+        if latest_data['excel_bytes'] is None:
+            return jsonify({
+                "success": False,
+                "message": "No Excel file available. Please run automation first."
+            }), 404
+        
+        # Create a BytesIO object from the stored bytes
+        excel_io = io.BytesIO(latest_data['excel_bytes'])
+        excel_io.seek(0)
+        
+        return send_file(
+            excel_io,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='master_Excel.xlsx'
+        )
+    except Exception as e:
+        print(f"Error downloading Excel: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Failed to download Excel file: {str(e)}"
+        }), 500
+
+
+@app.route('/api/get-data', methods=['GET'])
+def get_data():
+    """
+    Endpoint to retrieve the processed data without re-running automation.
+    
+    Returns:
+        JSON with data, columns, and statistics
+    """
+    try:
+        if latest_data['master_df'] is None:
+            return jsonify({
+                "success": False,
+                "message": "No data available. Please run automation first."
+            }), 404
+        
+        master_df = latest_data['master_df']
+        statistics = latest_data['statistics']
+        
+        # Convert DataFrame to JSON-serializable format with color information
+        data_dict = master_df.to_dict('records')
+        
+        # Add color information to each row
+        for row in data_dict:
+            state_value = row.get('State Value')
+            row['row_color'] = get_row_color(state_value)
+            # Format State Value
+            if pd.notna(state_value):
+                row['State Value'] = float(state_value)
+        
+        # Convert column names to list
+        columns = master_df.columns.tolist()
+        
+        return jsonify({
+            "success": True,
+            "data": data_dict,
+            "columns": columns,
+            "statistics": statistics
+        })
+    except Exception as e:
+        print(f"Error retrieving data: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Failed to retrieve data: {str(e)}"
+        }), 500
+
 
 if __name__ == '__main__':
     print("Starting Flask server...")
