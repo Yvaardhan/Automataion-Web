@@ -191,6 +191,49 @@ def apply_row_colors(excel_file_path):
     print(f"✅ Row colors applied based on State Value!")
 
 
+def get_row_color(state_value):
+    """
+    Get background color based on State Value.
+    
+    Colors:
+    - 0: Medium Green
+    - 1: Gray
+    - 2.1: Yellow
+    - 2.2: Orange
+    - 3: Medium Red
+    """
+    colors = {
+        0.0: "#90EE90",  # Medium Green
+        1.0: "#D3D3D3",  # Gray
+        2.1: "#FFFF00",  # Yellow
+        2.2: "#FFA500",  # Orange
+        3.0: "#CD5C5C"   # Medium Red
+    }
+    return colors.get(state_value, "#FFFFFF")
+
+
+def style_dataframe(df):
+    """
+    Apply color styling to the dataframe based on State Value.
+    """
+    # Create a copy to avoid modifying original
+    df_display = df.copy()
+    
+    # Format State Value column to show 2.1 instead of 2.1000
+    if 'State Value' in df_display.columns:
+        df_display['State Value'] = df_display['State Value'].apply(
+            lambda x: f"{x:.1f}" if pd.notna(x) else x
+        )
+    
+    def highlight_row(row):
+        # Get the original state value for color matching
+        state_value = float(row.get('State Value')) if row.get('State Value') else None
+        color = get_row_color(state_value)
+        return [f'background-color: {color}; color: #2C3E50; font-weight: 400' for _ in row]
+    
+    return df_display.style.apply(highlight_row, axis=1)
+
+
 def run_script(tsv_path, username, key):
     with tempfile.TemporaryDirectory() as temp_dir:
         options = webdriver.EdgeOptions()
@@ -359,7 +402,7 @@ def run_script(tsv_path, username, key):
 
         driver.quit()
 
-    return True
+    return True, master_df, master_excel_file
 
 # --------- Streamlit UI ---------
 # Hardcoded credentials for website login
@@ -367,24 +410,41 @@ USERNAME = "Yash"
 PASSWORD = "Yash@2003"
 
 # Configure page
-st.set_page_config(page_title="DNA Automation", layout="centered")
+st.set_page_config(page_title="DNA Automation", page_icon="🧬", layout="wide")
 
-# Custom CSS for light background
+# Custom CSS for simple, clean, light theme
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #355e3b;
+    .main {
+        background-color: #FAFBFC;
     }
-    .stApp > header {
-        background-color: transparent;
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    h1, h2, h3, p, span, div, label {
+        color: #2C3E50 !important;
+    }
+    .stButton>button {
+        background-color: #4A90E2;
+        color: white;
+        font-weight: 500;
+        padding: 0.6rem 1.5rem;
+        border-radius: 6px;
+        border: none;
+    }
+    .stButton>button:hover {
+        background-color: #357ABD;
+    }
+    [data-testid="stMetricValue"] {
+        color: #2C3E50 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # Main UI
-st.markdown("<h1 style='text-align: center;'>DNA Automation</h1>", unsafe_allow_html=True)
-st.info(f"Logged in as: **{USERNAME}**")
-st.divider()
+st.title("🧬 DNA Automation")
+st.info(f"📁 Logged in as: **{USERNAME}**")
+st.markdown("---")
 
 # File upload
 st.subheader("Upload TSV File")
@@ -396,20 +456,64 @@ if uploaded_file is not None:
     with open(temp_tsv_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     
-    st.markdown(f"<p style='color: black; font-weight: bold;'>✅ File uploaded: {uploaded_file.name}</p>", unsafe_allow_html=True)
+    st.success(f"✅ File uploaded: {uploaded_file.name}")
     
     # Run automation button
     if st.button("Extract DNA DATA", type="primary"):
         with st.spinner("Running automation... This may take several minutes."):
             try:
                 # Using hardcoded credentials for website login
-                success = run_script(temp_tsv_path, USERNAME, PASSWORD)
+                success, master_df, master_excel_file = run_script(temp_tsv_path, USERNAME, PASSWORD)
                 if success:
-                    st.success("✅ All files downloaded and Master Excel created!")
+                    st.success(f"✅ All files downloaded and Master Excel created at: {master_excel_file}")
                     st.balloons()
+                    
+                    # Store in session state
+                    st.session_state['master_df'] = master_df
+                    st.session_state['master_excel_file'] = master_excel_file
             except Exception as e:
                 st.error(f"❌ An error occurred: {str(e)}")
         
         # Clean up temp file
         if os.path.exists(temp_tsv_path):
             os.remove(temp_tsv_path)
+
+# Display dataframe if it exists in session state
+if 'master_df' in st.session_state:
+    master_df = st.session_state['master_df']
+    
+    st.markdown("---")
+    
+    # DNA App Data Result Analysis
+    st.subheader("📊 DNA App Data Result")
+    
+    # Calculate counts for each state
+    state_0_count = len(master_df[master_df['State Value'] == 0])
+    state_1_count = len(master_df[master_df['State Value'] == 1])
+    state_21_count = len(master_df[master_df['State Value'] == 2.1])
+    state_22_count = len(master_df[master_df['State Value'] == 2.2])
+    
+    # Display analysis on left side
+    st.markdown(f'<div style="background-color: #90EE90; padding: 10px; margin: 5px 0; border-radius: 4px; color: #2C3E50; border: 1px solid #E0E0E0;"><b>Count of All Apps with same version:</b> {state_0_count}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #D3D3D3; padding: 10px; margin: 5px 0; border-radius: 4px; color: #2C3E50; border: 1px solid #E0E0E0;"><b>Count of All Drm Apps:</b> {state_1_count}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #FFFF00; padding: 10px; margin: 5px 0; border-radius: 4px; color: #2C3E50; border: 1px solid #E0E0E0;"><b>Count of All Apps with No Version:</b> {state_21_count}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #FFA500; padding: 10px; margin: 5px 0; border-radius: 4px; color: #2C3E50; border: 1px solid #E0E0E0;"><b>Count of All Apps with Version Difference:</b> {state_22_count}</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Display styled dataframe with all rows and columns
+    st.subheader("📋 Complete Data Table")
+    st.write(f"Showing all {len(master_df)} rows and {len(master_df.columns)} columns")
+    styled_df = style_dataframe(master_df)
+    
+    # Configure pandas display options to show all rows and columns
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    
+    # Display with scrolling enabled for all data
+    st.dataframe(
+        styled_df, 
+        height=800,
+        hide_index=False,
+        column_config=None
+    )
