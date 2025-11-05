@@ -11,6 +11,473 @@ DB_USER = "root"
 DB_PASSWORD = "Yash@8855"
 DB_NAME = "dna_automation"
 
+# InfoLink Server Names - For both Current and Reference use
+INFOLINK_SERVERS = [
+    "T-INFOLINK2024-1000",
+    "T-INFOLINK2023-1008",
+    "T-INFOLINK2023-1007",
+    "T-INFOLINK2023-1006",
+    "T-INFOLINK2023-1005",
+    "T-INFOLINK2023-1004",
+    "T-INFOLINK2023-1003",
+    "T-INFOLINK2023-1002",
+    "T-INFOLINK2023-1001",
+    "T-INFOLINK2023-1000",
+    "T-INFOLINK2022-1012",
+    "T-INFOLINK2022-1011",
+    "T-INFOLINK2022-1010",
+    "T-INFOLINK2022-1009",
+    "T-INFOLINK2022-1008",
+    "T-INFOLINK2022-1007",
+    "T-INFOLINK2022-1006",
+    "T-INFOLINK2022-1005",
+    "T-INFOLINK2022-1004",
+    "T-INFOLINK2022-1003",
+    "T-INFOLINK2022-1002",
+    "T-INFOLINK2022-1001",
+    "T-INFOLINK2022-1000",
+    "T-INFOLINK2021-1014",
+    "T-INFOLINK2021-1013",
+    "T-INFOLINK2021-1012",
+    "T-INFOLINK2021-1011",
+    "T-INFOLINK2021-1010",
+    "T-INFOLINK2021-1009",
+    "T-INFOLINK2021-1008",
+    "T-INFOLINK2021-1007",
+    "T-INFOLINK2021-1006",
+    "T-INFOLINK2021-1005",
+    "T-INFOLINK2021-1004",
+    "T-INFOLINK2021-1003",
+    "T-INFOLINK2021-1002",
+    "T-INFOLINK2021-1001",
+    "T-INFOLINK2021-1000",
+    "T-INFOLINK2020-1012",
+    "T-INFOLINK2020-1011",
+    "T-INFOLINK2020-1010",
+    "T-INFOLINK2020-1009",
+    "T-INFOLINK2020-1008",
+    "T-INFOLINK2020-1007",
+    "T-INFOLINK2020-1006",
+    "T-INFOLINK2020-1005",
+    "T-INFOLINK2020-1004",
+    "T-INFOLINK2020-1003",
+    "T-INFOLINK2020-1002",
+    "T-INFOLINK2020-1001",
+    "T-INFOLINK2020-1000",
+    "T-INFOLINK2019-1013",
+    "T-INFOLINK2019-1012",
+    "T-INFOLINK2019-1011",
+    "T-INFOLINK2019-1010",
+    "T-INFOLINK2019-1009",
+    "T-INFOLINK2019-1008",
+    "T-INFOLINK2019-1007",
+    "T-INFOLINK2019-1006",
+    "T-INFOLINK2019-1005_B",
+    "T-INFOLINK2019-1005_A",
+    "T-INFOLINK2019-1005",
+    "T-INFOLINK2019-1004",
+    "T-INFOLINK2019-1003",
+    "T-INFOLINK2019-1002",
+    "T-INFOLINK2019-1001",
+    "T-INFOLINK2019-1000",
+    "T-INFOLINK2018-1016",
+    "T-INFOLINK2018-1015",
+    "T-INFOLINK2018-1014",
+    "T-INFOLINK2018-1013",
+    "T-INFOLINK2018-1012",
+    "T-INFOLINK2018-1011",
+    "T-INFOLINK2018-1010",
+    "T-INFOLINK2018-1009",
+    "T-INFOLINK2018-1008",
+    "T-INFOLINK2018-1007",
+    "T-INFOLINK2018-1006",
+    "T-INFOLINK2018-1005",
+    "T-INFOLINK2018-1004",
+    "T-INFOLINK2018-1003",
+    "T-INFOLINK2018-1002",
+    "T-INFOLINK2018-1001",
+    "T-INFOLINK2018-1000",
+    "T-INFOLINK2017-1009",
+    "T-INFOLINK2017-1008",
+    "T-INFOLINK2017-1007",
+    "T-INFOLINK2017-1006",
+    "T-INFOLINK2017-1005",
+    "T-INFOLINK2017-1004",
+    "T-INFOLINK2017-1003",
+    "T-INFOLINK2017-1002",
+    "T-INFOLINK2017-1001",
+    "T-INFOLINK2017-1000",
+    "T-INFOLINK2016-1020",
+    "T-INFOLINK2016-1019",
+    "T-INFOLINK2016-1018",
+    "T-INFOLINK2016-1017",
+    "T-INFOLINK2016-1016",
+    "T-INFOLINK2016-1015",
+    "T-INFOLINK2016-1014",
+    "T-INFOLINK2016-1013",
+    "T-INFOLINK2016-1012",
+    "T-INFOLINK2016-1011",
+    "T-INFOLINK2016-1010",
+    "T-INFOLINK2016-1009",
+    "T-INFOLINK2016-1008",
+    "T-INFOLINK2016-1007",
+    "T-INFOLINK2016-1006",
+    "T-INFOLINK2016-1005",
+    "T-INFOLINK2016-1004",
+    "T-INFOLINK2016-1003",
+    "T-INFOLINK2016-1002",
+    "T-INFOLINK2016-1001",
+    "T-INFOLINK2016-1000",
+    "T-INFOLINK2015-1021",
+    "T-INFOLINK2015-1020",
+    "T-INFOLINK2015-1019",
+    "T-INFOLINK2015-1018",
+    "T-INFOLINK2015-1017",
+    "T-INFOLINK2015-1016",
+    "T-INFOLINK2015-1015",
+    "T-INFOLINK2015-1014",
+    "T-INFOLINK2015-1013",
+    "T-INFOLINK2015-1012",
+    "T-INFOLINK2015-1011",
+    "T-INFOLINK2015-1010",
+    "T-INFOLINK2015-1009",
+    "T-INFOLINK2015-1008",
+    "T-INFOLINK2015-1007",
+    "T-INFOLINK2015-1006",
+    "T-INFOLINK2015-1005",
+    "T-INFOLINK2015-1004",
+    "T-INFOLINK2015-1003",
+    "T-INFOLINK2015-1002",
+    "T-INFOLINK2015-1001",
+    "T-INFOLINK2015-1000",
+    "T-INFOLINK2014-1044",
+    "T-INFOLINK2014-1043",
+    "T-INFOLINK2014-1042",
+    "T-INFOLINK2014-1041",
+    "T-INFOLINK2014-1040",
+    "T-INFOLINK2014-1039",
+    "T-INFOLINK2014-1038",
+    "T-INFOLINK2014-1037",
+    "T-INFOLINK2014-1036",
+    "T-INFOLINK2014-1035",
+    "T-INFOLINK2014-1034",
+    "T-INFOLINK2014-1033",
+    "T-INFOLINK2014-1032",
+    "T-INFOLINK2014-1031",
+    "T-INFOLINK2014-1030",
+    "T-INFOLINK2014-1029",
+    "T-INFOLINK2014-1028",
+    "T-INFOLINK2014-1027",
+    "T-INFOLINK2014-1026",
+    "T-INFOLINK2014-1025",
+    "T-INFOLINK2014-1024",
+    "T-INFOLINK2014-1023",
+    "T-INFOLINK2014-1022",
+    "T-INFOLINK2014-1021",
+    "T-INFOLINK2014-1020",
+    "T-INFOLINK2014-1019",
+    "T-INFOLINK2014-1018",
+    "T-INFOLINK2014-1017",
+    "T-INFOLINK2014-1016",
+    "T-INFOLINK2014-1015",
+    "T-INFOLINK2014-1014",
+    "T-INFOLINK2014-1013",
+    "T-INFOLINK2014-1012",
+    "T-INFOLINK2014-1011",
+    "T-INFOLINK2014-1010",
+    "T-INFOLINK2014-1009",
+    "T-INFOLINK2014-1008",
+    "T-INFOLINK2014-1007",
+    "T-INFOLINK2014-1006",
+    "T-INFOLINK2014-1005",
+    "T-INFOLINK2014-1004",
+    "T-INFOLINK2014-1003",
+    "T-INFOLINK2014-1002",
+    "T-INFOLINK2014-1001",
+    "T-INFOLINK2014-1000",
+    "T-INFOLINK2013-1031",
+    "T-INFOLINK2013-1030",
+    "T-INFOLINK2013-1029",
+    "T-INFOLINK2013-1028",
+    "T-INFOLINK2013-1027",
+    "T-INFOLINK2013-1026",
+    "T-INFOLINK2013-1025",
+    "T-INFOLINK2013-1024",
+    "T-INFOLINK2013-1023",
+    "T-INFOLINK2013-1022",
+    "T-INFOLINK2013-1021",
+    "T-INFOLINK2013-1020",
+    "T-INFOLINK2013-1019",
+    "T-INFOLINK2013-1018",
+    "T-INFOLINK2013-1017",
+    "T-INFOLINK2013-1016",
+    "T-INFOLINK2013-1015",
+    "T-INFOLINK2013-1014",
+    "T-INFOLINK2013-1013",
+    "T-INFOLINK2013-1012",
+    "T-INFOLINK2013-1011",
+    "T-INFOLINK2013-1010",
+    "T-INFOLINK2013-1009",
+    "T-INFOLINK2013-1008",
+    "T-INFOLINK2013-1007",
+    "T-INFOLINK2013-1006",
+    "T-INFOLINK2013-1005",
+    "T-INFOLINK2013-1004",
+    "T-INFOLINK2013-1003",
+    "T-INFOLINK2013-1002",
+    "T-INFOLINK2013-1001",
+    "T-INFOLINK2013-1000",
+    "T-INFOLINK2012-1027",
+    "T-INFOLINK2012-1026",
+    "T-INFOLINK2012-1025",
+    "T-INFOLINK2012-1024",
+    "T-INFOLINK2012-1023",
+    "T-INFOLINK2012-1022",
+    "T-INFOLINK2012-1021",
+    "T-INFOLINK2012-1020",
+    "T-INFOLINK2012-1019",
+    "T-INFOLINK2012-1018",
+    "T-INFOLINK2012-1017",
+    "T-INFOLINK2012-1016",
+    "T-INFOLINK2012-1015",
+    "T-INFOLINK2012-1014",
+    "T-INFOLINK2012-1013",
+    "T-INFOLINK2012-1012",
+    "T-INFOLINK2012-1011",
+    "T-INFOLINK2012-1010",
+    "T-INFOLINK2012-1009",
+    "T-INFOLINK2012-1008",
+    "T-INFOLINK2012-1007",
+    "T-INFOLINK2012-1006",
+    "T-INFOLINK2012-1005",
+    "T-INFOLINK2012-1004",
+    "T-INFOLINK2012-1003",
+    "T-INFOLINK2012-1002",
+    "T-INFOLINK2012-1001",
+    "T-INFOLINK2012-1000",
+    "TC-INFOLINK2011-1000",
+    "T-INFOLINK2011-1016",
+    "T-INFOLINK2011-1015",
+    "T-INFOLINK2011-1014",
+    "T-INFOLINK2011-1013",
+    "T-INFOLINK2011-1012",
+    "T-INFOLINK2011-1011",
+    "T-INFOLINK2011-1010",
+    "T-INFOLINK2011-1009",
+    "T-INFOLINK2011-1008",
+    "T-INFOLINK2011-1007",
+    "T-INFOLINK2011-1006",
+    "T-INFOLINK2011-1005",
+    "T-INFOLINK2011-1004",
+    "T-INFOLINK2011-1003",
+    "T-INFOLINK2011-1002",
+    "T-INFOLINK2011-1001",
+    "T-INFOLINK2011-1000",
+    "T-INFOLINK2010-1400",
+    "T-INFOLINK2010-1300",
+    "T-INFOLINK2010-1200",
+    "T-INFOLINK2010-1100",
+    "T-INFOLINK2010-1014",
+    "T-INFOLINK2010-1013",
+    "T-INFOLINK2010-1012",
+    "T-INFOLINK2010-1011",
+    "T-INFOLINK2010-1010",
+    "T-INFOLINK2010-1009",
+    "T-INFOLINK2010-1008",
+    "T-INFOLINK2010-1007",
+    "T-INFOLINK2010-1006",
+    "T-INFOLINK2010-1005",
+    "T-INFOLINK2010-1004",
+    "T-INFOLINK2010-1003",
+    "T-INFOLINK2010-1002",
+    "T-INFOLINK2010-1001",
+    "T-INFOLINK2010-1000",
+    "E-INFOLINK2010-1000",
+    "B-INFOLINK2010-1001",
+    "B-INFOLINK2010-1000",
+    "T-VALENCIA-1000",
+    "T-INFOLINK2025-1008",
+    "T-INFOLINK2024-1010",
+    "T-INFOLINK2022-1025"
+]
+
+# Country Names - For both Current and Reference use
+COUNTRIES = [
+    "Afghanistan",
+    "Aland Islands",
+    "Albania",
+    "Algeria",
+    "Andorra",
+    "Angola",
+    "Anguilla",
+    "Antigua and Barbuda",
+    "Argentina",
+    "Armenia",
+    "Australia",
+    "Austria",
+    "Azerbaijan",
+    "Bahamas",
+    "Bahrain",
+    "Bangladesh",
+    "Barbados",
+    "Belarus",
+    "Belgium",
+    "Bermuda",
+    "Bolivia",
+    "Bosnia and Herzegovina",
+    "Botswana",
+    "Brazil",
+    "Brunei Darussalam",
+    "Bulgaria",
+    "Burkina Faso",
+    "Cambodia",
+    "Cameroon",
+    "Canada",
+    "Cape Verde",
+    "Cayman Islands",
+    "China",
+    "Colombia",
+    "Congo",
+    "Cook Islands",
+    "Costa Rica",
+    "Croatia",
+    "Cuba",
+    "Denmark",
+    "Dominica",
+    "Dominican Republic",
+    "Ecuador",
+    "El Salvador",
+    "Equatorial Guinea",
+    "Eritrea",
+    "Estonia",
+    "Ethiopia",
+    "Faroe Islands",
+    "Finland",
+    "France",
+    "Gabon",
+    "Gambia",
+    "Georgia",
+    "Germany",
+    "Ghana",
+    "Greenland",
+    "Grenada",
+    "Guam",
+    "Guatemala",
+    "Guinea",
+    "Guinea-Bissau",
+    "Guyana",
+    "Haiti",
+    "Honduras",
+    "Hungary",
+    "Iceland",
+    "India",
+    "Indonesia",
+    "Iran, Islamic Republic of",
+    "Iraq",
+    "Ireland",
+    "Isle of Man",
+    "Israel",
+    "Italy",
+    "Jamaica",
+    "Japan",
+    "Jordan",
+    "Kazakhstan",
+    "Kenya",
+    "Korea, Republic",
+    "Kuwait",
+    "Lao People's Democratic Republic",
+    "Latvia",
+    "Lebanon",
+    "Liberia",
+    "Libyan Arab Jamahiriya",
+    "Lithuania",
+    "Macao",
+    "Macedonia",
+    "Madagascar",
+    "Malawi",
+    "Malaysia",
+    "Maldives",
+    "Mali",
+    "Malta",
+    "Mauritania",
+    "Mauritius",
+    "Moldova",
+    "Monaco",
+    "Mongolia",
+    "Montserrat",
+    "Morocco",
+    "Mozambique",
+    "Myanmar",
+    "Namibia",
+    "Nepal",
+    "Netherlands",
+    "New Zealand",
+    "Nicaragua",
+    "Nigeria",
+    "Norway",
+    "Oman",
+    "Pakistan",
+    "Palestinian Territory",
+    "Panama",
+    "Papua New Guinea",
+    "Paraguay",
+    "Peru",
+    "Philippines",
+    "Poland",
+    "Portugal",
+    "Qatar",
+    "Romania",
+    "Russian Federation",
+    "Rwanda",
+    "Saint Kitts and Nevis",
+    "Saint Lucia",
+    "Saint Vincent and the Grenadines",
+    "Samoa",
+    "San Marino",
+    "Sao Tome and Principe",
+    "Saudi Arabia",
+    "Senegal",
+    "Serbia",
+    "Sierra Leone",
+    "Singapore",
+    "Slovakia",
+    "Slovenia",
+    "Somalia",
+    "South Africa",
+    "Spain",
+    "Sri Lanka",
+    "Sudan",
+    "Suriname",
+    "Swaziland",
+    "Switzerland",
+    "Syrian Arab Republic",
+    "Taiwan",
+    "Tajikistan",
+    "Tanzania",
+    "Thailand",
+    "Trinidad and Tobago",
+    "Tunisia",
+    "Turkey",
+    "Turkmenistan",
+    "Turks and Caicos Islands",
+    "Tuvalu",
+    "Uganda",
+    "Ukraine",
+    "United Arab Emirates",
+    "United Kingdom of Great Britain and Northern Ireland",
+    "United States of America",
+    "Uruguay",
+    "Uzbekistan",
+    "Vanuatu",
+    "Venezuela",
+    "Vietnam",
+    "Virgin Islands, British",
+    "Virgin Islands, U.S.",
+    "Western Sahara",
+    "Zambia",
+    "Zimbabwe"
+]
+
 # Model mapping (model_id to model_names)
 # Format: "model_name": "model_id" where model_name is what users select, model_id is used in automation
 model_mapping = {
@@ -146,6 +613,32 @@ def create_tables(connection):
         cursor.execute(create_mapping_query)
         print("✓ Table 'model_mapping' created/verified")
         
+        # Create infolink_servers table for both current and reference servers
+        create_infolink_query = """
+        CREATE TABLE IF NOT EXISTS infolink_servers (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            server_name VARCHAR(100) UNIQUE NOT NULL,
+            server_type ENUM('current', 'reference', 'both') DEFAULT 'both',
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+        cursor.execute(create_infolink_query)
+        print("✓ Table 'infolink_servers' created/verified")
+        
+        # Create countries table for both current and reference countries
+        create_countries_query = """
+        CREATE TABLE IF NOT EXISTS countries (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            country_name VARCHAR(100) UNIQUE NOT NULL,
+            country_type ENUM('current', 'reference', 'both') DEFAULT 'both',
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+        cursor.execute(create_countries_query)
+        print("✓ Table 'countries' created/verified")
+        
         cursor.close()
     except Error as e:
         print(f"✗ Error creating tables: {e}")
@@ -194,6 +687,48 @@ def populate_model_mapping(connection):
         cursor.close()
     except Error as e:
         print(f"✗ Error populating model mapping: {e}")
+
+def populate_infolink_servers(connection):
+    """Insert InfoLink server names into database."""
+    try:
+        cursor = connection.cursor()
+        cursor.execute(f"USE {DB_NAME}")
+        
+        # Clear existing data
+        cursor.execute("DELETE FROM infolink_servers")
+        
+        # Insert InfoLink servers (available for both current and reference)
+        insert_query = "INSERT INTO infolink_servers (server_name, server_type, is_active) VALUES (%s, %s, %s)"
+        for server_name in INFOLINK_SERVERS:
+            cursor.execute(insert_query, (server_name, 'both', True))
+        
+        connection.commit()
+        print(f"✓ Inserted {len(INFOLINK_SERVERS)} InfoLink servers")
+        
+        cursor.close()
+    except Error as e:
+        print(f"✗ Error populating InfoLink servers: {e}")
+
+def populate_countries(connection):
+    """Insert country names into database."""
+    try:
+        cursor = connection.cursor()
+        cursor.execute(f"USE {DB_NAME}")
+        
+        # Clear existing data
+        cursor.execute("DELETE FROM countries")
+        
+        # Insert countries (available for both current and reference)
+        insert_query = "INSERT INTO countries (country_name, country_type, is_active) VALUES (%s, %s, %s)"
+        for country_name in COUNTRIES:
+            cursor.execute(insert_query, (country_name, 'both', True))
+        
+        connection.commit()
+        print(f"✓ Inserted {len(COUNTRIES)} countries")
+        
+        cursor.close()
+    except Error as e:
+        print(f"✗ Error populating countries: {e}")
 
 def display_model_names(connection):
     """Display all model names with their IDs from the database."""
@@ -245,15 +780,29 @@ def main():
         # Populate tables
         populate_model_names(connection, model_data)
         populate_model_mapping(connection)
+        populate_infolink_servers(connection)
+        populate_countries(connection)
         
         # Display results
         display_model_names(connection)
+        
+        # Display InfoLink servers and countries count
+        cursor = connection.cursor()
+        cursor.execute(f"USE {DB_NAME}")
+        cursor.execute("SELECT COUNT(*) FROM infolink_servers")
+        server_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM countries")
+        country_count = cursor.fetchone()[0]
+        print(f"\n✓ Total InfoLink Servers: {server_count}")
+        print(f"✓ Total Countries: {country_count}")
+        cursor.close()
         
         print("\n" + "=" * 70)
         print("✓ DATABASE SETUP COMPLETED SUCCESSFULLY!")
         print("=" * 70)
         print("\nNOTE: Users will select Model Names from dropdown,")
         print("      and the system will use corresponding Model IDs for automation.")
+        print(f"      InfoLink servers ({server_count} total) and Countries ({country_count} total) are available for selection.")
         
     finally:
         if connection.is_connected():

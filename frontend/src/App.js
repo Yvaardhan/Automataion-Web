@@ -42,12 +42,16 @@ function App() {
     }
   ]);
   const [modelNames, setModelNames] = useState([]);
+  const [infolinkServers, setInfoLinkServers] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Fetch model names from API on component mount
+  // Fetch data from API on component mount
   useEffect(() => {
     fetchModelNames();
+    fetchInfoLinkServers();
+    fetchCountries();
   }, []);
 
   const fetchModelNames = async () => {
@@ -61,6 +65,34 @@ function App() {
     } catch (error) {
       console.error('Error fetching model names:', error);
       message.error('Failed to load model names from database');
+    }
+  };
+
+  const fetchInfoLinkServers = async () => {
+    try {
+      const response = await axios.get('/api/infolink-servers');
+      if (response.data.success) {
+        setInfoLinkServers(response.data.servers);
+      } else {
+        message.error('Failed to load InfoLink servers');
+      }
+    } catch (error) {
+      console.error('Error fetching InfoLink servers:', error);
+      message.error('Failed to load InfoLink servers from database');
+    }
+  };
+
+  const fetchCountries = async () => {
+    try {
+      const response = await axios.get('/api/countries');
+      if (response.data.success) {
+        setCountries(response.data.countries);
+      } else {
+        message.error('Failed to load countries');
+      }
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+      message.error('Failed to load countries from database');
     }
   };
 
@@ -273,56 +305,96 @@ function App() {
       title: 'Country Ref.',
       dataIndex: 'country_ref',
       key: 'country_ref',
-      width: 130,
+      width: 200,
       render: (text, record) => (
-        <Input
+        <Select
           value={text}
-          onChange={(e) => handleInputChange(record.key, 'country_ref', e.target.value)}
-          placeholder="e.g., US"
+          onChange={(value) => handleInputChange(record.key, 'country_ref', value)}
+          placeholder="Select Country"
+          style={{ width: '100%' }}
           disabled={loading}
-        />
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+        >
+          {countries.map(country => (
+            <Option key={country} value={country}>{country}</Option>
+          ))}
+        </Select>
       )
     },
     {
       title: 'Country Curr.',
       dataIndex: 'country_curr',
       key: 'country_curr',
-      width: 130,
+      width: 200,
       render: (text, record) => (
-        <Input
+        <Select
           value={text}
-          onChange={(e) => handleInputChange(record.key, 'country_curr', e.target.value)}
-          placeholder="e.g., US"
+          onChange={(value) => handleInputChange(record.key, 'country_curr', value)}
+          placeholder="Select Country"
+          style={{ width: '100%' }}
           disabled={loading}
-        />
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+        >
+          {countries.map(country => (
+            <Option key={country} value={country}>{country}</Option>
+          ))}
+        </Select>
       )
     },
     {
       title: 'InfoLink Ver. Ref.',
       dataIndex: 'infolink_ver_ref',
       key: 'infolink_ver_ref',
-      width: 150,
+      width: 220,
       render: (text, record) => (
-        <Input
+        <Select
           value={text}
-          onChange={(e) => handleInputChange(record.key, 'infolink_ver_ref', e.target.value)}
-          placeholder="Version"
+          onChange={(value) => handleInputChange(record.key, 'infolink_ver_ref', value)}
+          placeholder="Select InfoLink Server"
+          style={{ width: '100%' }}
           disabled={loading}
-        />
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+        >
+          {infolinkServers.map(server => (
+            <Option key={server} value={server}>{server}</Option>
+          ))}
+        </Select>
       )
     },
     {
       title: 'InfoLink Ver. Curr.',
       dataIndex: 'infolink_ver_curr',
       key: 'infolink_ver_curr',
-      width: 150,
+      width: 220,
       render: (text, record) => (
-        <Input
+        <Select
           value={text}
-          onChange={(e) => handleInputChange(record.key, 'infolink_ver_curr', e.target.value)}
-          placeholder="Version"
+          onChange={(value) => handleInputChange(record.key, 'infolink_ver_curr', value)}
+          placeholder="Select InfoLink Server"
+          style={{ width: '100%' }}
           disabled={loading}
-        />
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+        >
+          {infolinkServers.map(server => (
+            <Option key={server} value={server}>{server}</Option>
+          ))}
+        </Select>
       )
     },
     {

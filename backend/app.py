@@ -164,6 +164,94 @@ def get_model_id_from_name(model_name):
             cursor.close()
             connection.close()
 
+def get_all_infolink_servers(server_type=None, active_only=True):
+    """
+    Fetch all InfoLink servers from the database.
+    
+    Args:
+        server_type (str, optional): Filter by server type ('current', 'reference', 'both')
+        active_only (bool): If True, only return active servers
+    
+    Returns:
+        list: List of InfoLink server names
+    """
+    connection = get_db_connection()
+    if not connection:
+        return []
+    
+    try:
+        cursor = connection.cursor()
+        
+        # Build query based on filters
+        query = "SELECT DISTINCT server_name FROM infolink_servers WHERE 1=1"
+        params = []
+        
+        if active_only:
+            query += " AND is_active = %s"
+            params.append(True)
+        
+        if server_type and server_type in ['current', 'reference', 'both']:
+            query += " AND (server_type = %s OR server_type = 'both')"
+            params.append(server_type)
+        
+        query += " ORDER BY server_name DESC"
+        
+        cursor.execute(query, tuple(params))
+        results = cursor.fetchall()
+        servers = [row[0] for row in results]
+        return servers
+    except Error as e:
+        print(f"Error fetching InfoLink servers: {e}")
+        return []
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
+def get_all_countries(country_type=None, active_only=True):
+    """
+    Fetch all countries from the database.
+    
+    Args:
+        country_type (str, optional): Filter by country type ('current', 'reference', 'both')
+        active_only (bool): If True, only return active countries
+    
+    Returns:
+        list: List of country names
+    """
+    connection = get_db_connection()
+    if not connection:
+        return []
+    
+    try:
+        cursor = connection.cursor()
+        
+        # Build query based on filters
+        query = "SELECT DISTINCT country_name FROM countries WHERE 1=1"
+        params = []
+        
+        if active_only:
+            query += " AND is_active = %s"
+            params.append(True)
+        
+        if country_type and country_type in ['current', 'reference', 'both']:
+            query += " AND (country_type = %s OR country_type = 'both')"
+            params.append(country_type)
+        
+        query += " ORDER BY country_name ASC"
+        
+        cursor.execute(query, tuple(params))
+        results = cursor.fetchall()
+        countries = [row[0] for row in results]
+        return countries
+    except Error as e:
+        print(f"Error fetching countries: {e}")
+        return []
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
 # ========== End Database Functions ==========
 
 def extract_name(full_name):
@@ -549,6 +637,64 @@ def get_model_names_endpoint():
         return jsonify({
             "success": False,
             "message": f"Failed to fetch model names: {str(e)}"
+        }), 500
+
+@app.route('/api/infolink-servers', methods=['GET'])
+def get_infolink_servers_endpoint():
+    """
+    Endpoint to fetch all available InfoLink servers from the database.
+    
+    Query Parameters:
+        server_type (optional): Filter by 'current', 'reference', or 'both' (default: all)
+        active_only (optional): If 'true', only return active servers (default: true)
+    
+    Returns:
+        JSON array of InfoLink server names
+    """
+    try:
+        server_type = request.args.get('server_type', None)
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        
+        servers = get_all_infolink_servers(server_type, active_only)
+        return jsonify({
+            "success": True,
+            "servers": servers,
+            "count": len(servers)
+        })
+    except Exception as e:
+        print(f"Error fetching InfoLink servers: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Failed to fetch InfoLink servers: {str(e)}"
+        }), 500
+
+@app.route('/api/countries', methods=['GET'])
+def get_countries_endpoint():
+    """
+    Endpoint to fetch all available countries from the database.
+    
+    Query Parameters:
+        country_type (optional): Filter by 'current', 'reference', or 'both' (default: all)
+        active_only (optional): If 'true', only return active countries (default: true)
+    
+    Returns:
+        JSON array of country names
+    """
+    try:
+        country_type = request.args.get('country_type', None)
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        
+        countries = get_all_countries(country_type, active_only)
+        return jsonify({
+            "success": True,
+            "countries": countries,
+            "count": len(countries)
+        })
+    except Exception as e:
+        print(f"Error fetching countries: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Failed to fetch countries: {str(e)}"
         }), 500
 
 @app.route('/api/run-automation', methods=['POST'])
