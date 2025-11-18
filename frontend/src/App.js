@@ -60,11 +60,15 @@ function App() {
 
   // Debug useEffect to track resultsData changes
   useEffect(() => {
-    console.log('resultsData changed:', resultsData);
-    console.log('resultsData type:', typeof resultsData);
-    console.log('resultsData is array:', Array.isArray(resultsData));
-    console.log('resultsData length:', resultsData?.length);
-  }, [resultsData]);
+    if (resultsData) {
+      console.log('✅ RESULTS DATA UPDATED:', {
+        isArray: Array.isArray(resultsData),
+        length: resultsData?.length,
+        hasColumns: resultsColumns?.length > 0,
+        hasStatistics: !!statistics
+      });
+    }
+  }, [resultsData, resultsColumns, statistics]);
 
   const fetchModelNames = async () => {
     try {
@@ -205,24 +209,29 @@ function App() {
 
           if (response.data.success) {
             // Debug logging
-            console.log('Response data:', response.data);
-            console.log('Data array:', response.data.data);
-            console.log('Columns:', response.data.columns);
-            console.log('Statistics:', response.data.statistics);
+            console.log('🎉 AUTOMATION SUCCESS!');
+            console.log('📊 Response Structure:', {
+              hasData: !!response.data.data,
+              dataLength: response.data.data?.length,
+              hasColumns: !!response.data.columns,
+              columnsCount: response.data.columns?.length,
+              hasStatistics: !!response.data.statistics
+            });
+            console.log('📋 Full Response:', response.data);
             
             // Store the results data
             setResultsData(response.data.data);
             setResultsColumns(response.data.columns);
             setStatistics(response.data.statistics);
             
-            // Log state after setting
-            console.log('Results data set, length:', response.data.data?.length);
+            console.log('💾 State Updated - Data length:', response.data.data?.length);
             
             message.success({
               content: '✅ Automation completed successfully! Master Excel file has been created.',
               duration: 5
             });
           } else {
+            console.error('❌ AUTOMATION FAILED:', response.data.message);
             message.error('Automation failed: ' + response.data.message);
           }
         } catch (error) {
@@ -540,7 +549,6 @@ function App() {
         </Card>
 
         {/* Results Section */}
-        {console.log('Rendering check - resultsData:', resultsData, 'length:', resultsData?.length)}
         {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (
           <Card className="main-card" style={{ marginTop: '20px' }}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
