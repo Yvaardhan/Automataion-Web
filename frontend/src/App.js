@@ -18,7 +18,8 @@ import {
   DeleteOutlined,
   PlayCircleOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
 import axios from 'axios';
 import './App.css';
@@ -46,6 +47,9 @@ function App() {
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [resultsData, setResultsData] = useState(null);
+  const [resultsColumns, setResultsColumns] = useState([]);
+  const [statistics, setStatistics] = useState(null);
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -192,6 +196,11 @@ function App() {
           setProgress(100);
 
           if (response.data.success) {
+            // Store the results data
+            setResultsData(response.data.data);
+            setResultsColumns(response.data.columns);
+            setStatistics(response.data.statistics);
+            
             message.success({
               content: '✅ Automation completed successfully! Master Excel file has been created.',
               duration: 5
@@ -208,6 +217,36 @@ function App() {
         }
       }
     });
+  };
+
+  const handleDownloadExcel = async () => {
+    try {
+      const response = await axios.get('/api/download-excel', {
+        responseType: 'blob'
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'master_Excel.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      message.success('Excel file downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      message.error('Failed to download Excel file');
+    }
+  };
+
+  const getRowStyle = (record) => {
+    const color = record.row_color;
+    if (color) {
+      return { backgroundColor: color };
+    }
+    return {};
   };
 
   const columns = [
@@ -482,6 +521,84 @@ function App() {
             </div>
           </Space>
         </Card>
+
+        {/* Results Section */}
+        {resultsData && resultsData.length > 0 && (
+          <Card className="main-card" style={{ marginTop: '20px' }}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Title level={3}>📊 Automation Results</Title>
+                <Button
+                  type="primary"
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadExcel}
+                  size="large"
+                >
+                  Download Excel
+                </Button>
+              </div>
+
+              {/* Statistics */}
+              {statistics && (
+                <Card size="small" style={{ backgroundColor: '#f0f2f5' }}>
+                  <Space size="large" wrap>
+                    <div>
+                      <Text strong>Total Rows: </Text>
+                      <Tag color="blue">{statistics.total_rows}</Tag>
+                    </div>
+                    <div>
+                      <Text strong>Total Columns: </Text>
+                      <Tag color="blue">{statistics.total_columns}</Tag>
+                    </div>
+                    <div>
+                      <Text strong>State 0 (Match): </Text>
+                      <Tag color="green">{statistics.state_0_count}</Tag>
+                    </div>
+                    <div>
+                      <Text strong>State 1 (Mismatch): </Text>
+                      <Tag color="red">{statistics.state_1_count}</Tag>
+                    </div>
+                    <div>
+                      <Text strong>State 2.1 (Partial): </Text>
+                      <Tag color="orange">{statistics.state_21_count}</Tag>
+                    </div>
+                    <div>
+                      <Text strong>State 2.2 (Not Found): </Text>
+                      <Tag color="volcano">{statistics.state_22_count}</Tag>
+                    </div>
+                  </Space>
+                </Card>
+              )}
+
+              {/* Results Table */}
+              <div className="table-container">
+                <Table
+                  dataSource={resultsData}
+                  columns={resultsColumns.map(col => ({
+                    title: col,
+                    dataIndex: col,
+                    key: col,
+                    width: 150,
+                    ellipsis: true,
+                    render: (text) => text != null ? String(text) : ''
+                  }))}
+                  scroll={{ x: 'max-content', y: 600 }}
+                  pagination={{
+                    pageSize: 50,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Total ${total} items`
+                  }}
+                  bordered
+                  size="small"
+                  rowKey={(record, index) => index}
+                  onRow={(record) => ({
+                    style: getRowStyle(record)
+                  })}
+                />
+              </div>
+            </Space>
+          </Card>
+        )}
       </Content>
     </Layout>
   );
