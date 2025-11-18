@@ -51,6 +51,26 @@ function App() {
   const [resultsColumns, setResultsColumns] = useState([]);
   const [statistics, setStatistics] = useState(null);
 
+  // Setup axios interceptor for debugging
+  useEffect(() => {
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => {
+        if (response.config.url === '/api/run-automation') {
+          console.log('🔍 AXIOS INTERCEPTOR - Run Automation Response:', response.data);
+        }
+        return response;
+      },
+      (error) => {
+        console.error('🔍 AXIOS INTERCEPTOR - Error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
+
   // Fetch data from API on component mount
   useEffect(() => {
     fetchModelNames();
@@ -547,6 +567,18 @@ function App() {
             </div>
           </Space>
         </Card>
+
+        {/* Results Section - Debug Info */}
+        {resultsData && (
+          <Card className="main-card" style={{ marginTop: '20px', backgroundColor: '#fff3cd' }}>
+            <Text strong>Debug Info:</Text>
+            <div>Results Data Type: {typeof resultsData}</div>
+            <div>Is Array: {Array.isArray(resultsData) ? 'Yes' : 'No'}</div>
+            <div>Length: {resultsData?.length || 0}</div>
+            <div>Columns: {resultsColumns?.length || 0}</div>
+            <div>Has Statistics: {statistics ? 'Yes' : 'No'}</div>
+          </Card>
+        )}
 
         {/* Results Section */}
         {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (
