@@ -520,16 +520,16 @@ def run_automation(rows_data):
                 print(f"Downloaded and Saved (Temp): {new_filepath_in_temp}")
                 time.sleep(10)
                 
-                # Collect app names
+                # Collect app names - Include all apps from CSV for comparison
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
                     reader = csv.DictReader(file)
                     for r in reader:
-                        app_owner_value = r.get("App Owner", "").strip()
                         app_name = r.get("App Name")
-                        if app_owner_value != "None" and app_owner_value or any(app_name.startswith(exception) for exception in exception_app_names):
-                            unique_app_names.add(app_name)
+                        if app_name and app_name.strip():  # Only check if app_name exists and is not empty
+                            unique_app_names.add(app_name.strip())
 
             # Create Master Excel in temporary directory
+            print(f"\n📊 Collected {len(unique_app_names)} unique app names from CSV files")
             app_names_df = pd.DataFrame(unique_app_names, columns=["App Name"])
             master_excel_file = os.path.join(temp_dir, "master_Excel.xlsx")
             app_names_df.to_excel(master_excel_file, index=False)
