@@ -58,6 +58,14 @@ function App() {
     fetchCountries();
   }, []);
 
+  // Debug useEffect to track resultsData changes
+  useEffect(() => {
+    console.log('resultsData changed:', resultsData);
+    console.log('resultsData type:', typeof resultsData);
+    console.log('resultsData is array:', Array.isArray(resultsData));
+    console.log('resultsData length:', resultsData?.length);
+  }, [resultsData]);
+
   const fetchModelNames = async () => {
     try {
       const response = await axios.get('/api/model-names');
@@ -196,10 +204,19 @@ function App() {
           setProgress(100);
 
           if (response.data.success) {
+            // Debug logging
+            console.log('Response data:', response.data);
+            console.log('Data array:', response.data.data);
+            console.log('Columns:', response.data.columns);
+            console.log('Statistics:', response.data.statistics);
+            
             // Store the results data
             setResultsData(response.data.data);
             setResultsColumns(response.data.columns);
             setStatistics(response.data.statistics);
+            
+            // Log state after setting
+            console.log('Results data set, length:', response.data.data?.length);
             
             message.success({
               content: '✅ Automation completed successfully! Master Excel file has been created.',
@@ -523,7 +540,8 @@ function App() {
         </Card>
 
         {/* Results Section */}
-        {resultsData && resultsData.length > 0 && (
+        {console.log('Rendering check - resultsData:', resultsData, 'length:', resultsData?.length)}
+        {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (
           <Card className="main-card" style={{ marginTop: '20px' }}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -598,7 +616,7 @@ function App() {
               </div>
             </Space>
           </Card>
-        )}
+        ) : null}
       </Content>
     </Layout>
   );
