@@ -195,11 +195,23 @@ function App() {
           clearInterval(progressInterval);
           setProgress(100);
 
+          console.log('🔍 RESPONSE:', {
+            success: response.data.success,
+            hasData: !!response.data.data,
+            dataLength: response.data.data?.length,
+            hasColumns: !!response.data.columns,
+            columnsLength: response.data.columns?.length,
+            hasStatistics: !!response.data.statistics,
+            fullResponse: response.data
+          });
+
           if (response.data.success) {
             // Store the results data
             setResultsData(response.data.data);
             setResultsColumns(response.data.columns);
             setStatistics(response.data.statistics);
+            
+            console.log('✅ State set - resultsData length:', response.data.data?.length);
             
             message.success({
               content: '✅ Automation completed successfully!',
@@ -543,6 +555,19 @@ function App() {
             </div>
           </Space>
         </Card>
+
+        {/* DEBUG INFO - TEMPORARY */}
+        {resultsData !== null && (
+          <Card style={{ marginTop: '20px', backgroundColor: '#fff3cd', border: '2px solid #856404' }}>
+            <Text strong style={{ color: '#856404' }}>🔍 DEBUG INFO:</Text>
+            <div>resultsData is null: {resultsData === null ? 'YES' : 'NO'}</div>
+            <div>resultsData type: {typeof resultsData}</div>
+            <div>Is Array: {Array.isArray(resultsData) ? 'YES' : 'NO'}</div>
+            <div>Length: {resultsData?.length || 0}</div>
+            <div>Columns: {resultsColumns?.length || 0}</div>
+            <div>Has Statistics: {statistics ? 'YES' : 'NO'}</div>
+          </Card>
+        )}
 
         {/* Results Section */}
         {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (
