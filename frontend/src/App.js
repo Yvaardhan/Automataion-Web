@@ -51,44 +51,12 @@ function App() {
   const [resultsColumns, setResultsColumns] = useState([]);
   const [statistics, setStatistics] = useState(null);
 
-  // Setup axios interceptor for debugging
-  useEffect(() => {
-    const responseInterceptor = axios.interceptors.response.use(
-      (response) => {
-        if (response.config.url === '/api/run-automation') {
-          console.log('🔍 AXIOS INTERCEPTOR - Run Automation Response:', response.data);
-        }
-        return response;
-      },
-      (error) => {
-        console.error('🔍 AXIOS INTERCEPTOR - Error:', error);
-        return Promise.reject(error);
-      }
-    );
-
-    return () => {
-      axios.interceptors.response.eject(responseInterceptor);
-    };
-  }, []);
-
   // Fetch data from API on component mount
   useEffect(() => {
     fetchModelNames();
     fetchInfoLinkServers();
     fetchCountries();
   }, []);
-
-  // Debug useEffect to track resultsData changes
-  useEffect(() => {
-    if (resultsData) {
-      console.log('✅ RESULTS DATA UPDATED:', {
-        isArray: Array.isArray(resultsData),
-        length: resultsData?.length,
-        hasColumns: resultsColumns?.length > 0,
-        hasStatistics: !!statistics
-      });
-    }
-  }, [resultsData, resultsColumns, statistics]);
 
   const fetchModelNames = async () => {
     try {
@@ -228,35 +196,43 @@ function App() {
           setProgress(100);
 
           if (response.data.success) {
-            // Debug logging
-            console.log('🎉 AUTOMATION SUCCESS!');
-            console.log('📊 Response Structure:', {
-              hasData: !!response.data.data,
-              dataLength: response.data.data?.length,
-              hasColumns: !!response.data.columns,
-              columnsCount: response.data.columns?.length,
-              hasStatistics: !!response.data.statistics
-            });
-            console.log('📋 Full Response:', response.data);
-            
             // Store the results data
             setResultsData(response.data.data);
             setResultsColumns(response.data.columns);
             setStatistics(response.data.statistics);
             
-            console.log('💾 State Updated - Data length:', response.data.data?.length);
-            
             message.success({
-              content: '✅ Automation completed successfully! Master Excel file has been created.',
+              content: '✅ Automation completed successfully!',
               duration: 5
             });
           } else {
-            console.error('❌ AUTOMATION FAILED:', response.data.message);
-            message.error('Automation failed: ' + response.data.message);
+            // Show detailed error message
+            const errorMsg = response.data.message || 'Automation failed';
+            
+            Modal.error({
+              title: 'Automation Failed',
+              content: (
+                <div style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflow: 'auto' }}>
+                  {errorMsg}
+                </div>
+              ),
+              width: 600,
+              okText: 'Close'
+            });
           }
         } catch (error) {
-          console.error('Error running automation:', error);
-          message.error('Failed to run automation: ' + (error.response?.data?.message || error.message));
+          const errorMsg = error.response?.data?.message || error.message;
+          
+          Modal.error({
+            title: 'Error',
+            content: (
+              <div style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflow: 'auto' }}>
+                {errorMsg}
+              </div>
+            ),
+            width: 600,
+            okText: 'Close'
+          });
         } finally {
           setLoading(false);
           setProgress(0);
@@ -567,18 +543,6 @@ function App() {
             </div>
           </Space>
         </Card>
-
-        {/* Results Section - Debug Info */}
-        {resultsData && (
-          <Card className="main-card" style={{ marginTop: '20px', backgroundColor: '#fff3cd' }}>
-            <Text strong>Debug Info:</Text>
-            <div>Results Data Type: {typeof resultsData}</div>
-            <div>Is Array: {Array.isArray(resultsData) ? 'Yes' : 'No'}</div>
-            <div>Length: {resultsData?.length || 0}</div>
-            <div>Columns: {resultsColumns?.length || 0}</div>
-            <div>Has Statistics: {statistics ? 'Yes' : 'No'}</div>
-          </Card>
-        )}
 
         {/* Results Section */}
         {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (

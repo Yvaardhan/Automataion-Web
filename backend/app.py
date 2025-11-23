@@ -21,6 +21,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 import io
 import json
+import platform
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -417,6 +418,32 @@ def run_automation(rows_data):
     Returns:
         Boolean indicating success
     """
+    # Verify EdgeDriver exists
+    if not os.path.exists(driver_path):
+        current_os = platform.system()
+        error_msg = f"""❌ EdgeDriver not found at: {driver_path}
+
+Current OS: {current_os}
+Expected OS: Windows
+
+⚠️ This application requires Microsoft Edge WebDriver to be installed on Windows.
+
+If you're on Windows:
+  1. Download EdgeDriver from: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
+  2. Extract msedgedriver.exe
+  3. Update 'driver_path' in backend/app.py (line 36) to point to your msedgedriver.exe location
+
+If you're on Mac/Linux:
+  ⚠️ This application is designed to run on Windows with EdgeDriver.
+  Please run this on your Windows office machine where EdgeDriver is configured.
+"""
+        print(error_msg)
+        return False, None, None, {
+            'error': 'EdgeDriver not found',
+            'details': error_msg,
+            'current_os': current_os
+        }
+    
     with tempfile.TemporaryDirectory() as temp_dir:
         options = webdriver.EdgeOptions()
         prefs = {
@@ -448,6 +475,7 @@ def run_automation(rows_data):
 
             output_data = [] 
             unique_app_names = set()
+            failed_comparisons = []
 
             # Process each row
             for row in rows_data:
@@ -497,13 +525,23 @@ def run_automation(rows_data):
                     )
                     driver.execute_script("arguments[0].click();", download_button)
                 except Exception as e:
-                    print(f"Download button error: {e}")
+                    error_msg = f"Download button not found: {str(e)}"
+                    print(f"❌ {error_msg}")
+                    failed_comparisons.append({
+                        'models': f"{Model_id_reference} vs {Model_id_current}",
+                        'error': error_msg
+                    })
                     continue 
 
                 time.sleep(10)
                 list_of_files = glob.glob(os.path.join(temp_dir, '*.csv'))
                 if not list_of_files:
-                    print("Error: No CSV file was downloaded.")
+                    error_msg = "No CSV file was downloaded after clicking download button"
+                    print(f"❌ {error_msg}")
+                    failed_comparisons.append({
+                        'models': f"{Model_id_reference} vs {Model_id_current}",
+                        'error': error_msg
+                    })
                     continue
 
                 latest_file = max(list_of_files, key=os.path.getctime)
@@ -527,6 +565,17 @@ def run_automation(rows_data):
                         app_name = r.get("App Name")
                         if app_name and app_name.strip():  # Only check if app_name exists and is not empty
                             unique_app_names.add(app_name.strip())
+
+            # Check if all comparisons failed
+            if not output_data:
+                error_details = "\n".join([f"  • {f['models']}: {f['error']}" for f in failed_comparisons])
+                error_message = f"❌ All comparisons failed. No data was retrieved.\n\nFailed Comparisons:\n{error_details}"
+                print(error_message)
+                return False, None, None, {
+                    'error': 'All comparisons failed',
+                    'failed_comparisons': failed_comparisons,
+                    'details': error_message
+                }
 
             # Create Master Excel in temporary directory
             print(f"\n📊 Collected {len(unique_app_names)} unique app names from CSV files")
@@ -783,7 +832,17 @@ def run_automation_endpoint():
             processed_rows.append(processed_row)
         
         # Run the automation with converted model IDs
-        success, master_df, excel_bytes, statistics = run_automation(processed_rows)
+        result = run_automation(processed_rows)
+        
+        # Handle tuple unpacking based on success
+        if len(result) == 4:
+            success, master_df, excel_bytes, statistics = result
+        else:
+            # Unexpected return format
+            return jsonify({
+                "success": False,
+                "message": "Unexpected automation result format"
+            }), 500
         
         if success:
             # Convert DataFrame to JSON-serializable format with color information
@@ -808,10 +867,15 @@ def run_automation_endpoint():
                 "statistics": statistics
             })
         else:
+            # When success is False, statistics contains error information
+            error_info = statistics if isinstance(statistics, dict) else {}
+            error_message = error_info.get('details', 'Automation failed.')
+            
             return jsonify({
                 "success": False,
-                "message": "Automation failed."
-            }), 500
+                "message": error_message,
+                "error_details": error_info.get('failed_comparisons', [])
+            }), 400
             
     except Exception as e:
         print(f"Error in endpoint: {str(e)}")
