@@ -558,13 +558,15 @@ If you're on Mac/Linux:
                 print(f"Downloaded and Saved (Temp): {new_filepath_in_temp}")
                 time.sleep(10)
                 
-                # Collect app names - Include all apps from CSV for comparison
+                # Collect app names - Filter by App Owner like Project.py
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
                     reader = csv.DictReader(file)
                     for r in reader:
+                        app_owner_value = r.get("App Owner", "").strip()
                         app_name = r.get("App Name")
-                        if app_name and app_name.strip():  # Only check if app_name exists and is not empty
-                            unique_app_names.add(app_name.strip())
+                        # Only add apps where App Owner is not "None" and has value, OR app name starts with exception
+                        if (app_owner_value and app_owner_value != "None") or any(app_name.startswith(exception) for exception in exception_app_names):
+                            unique_app_names.add(app_name)
 
             # Check if all comparisons failed
             if not output_data:
