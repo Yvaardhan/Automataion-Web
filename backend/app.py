@@ -516,13 +516,15 @@ If you're on Mac/Linux:
                 driver.find_element(By.XPATH, '//*[@id="id_InfoLink_Version_Current"]').send_keys(Infolink_version_current)
 
                 driver.find_element(By.XPATH, '//*[@id="ComparissionForm"]/div[5]/center').click()
-                time.sleep(5)
+                print(f"⏳ Waiting for comparison table to load for {Model_id_reference} vs {Model_id_current}...")
+                time.sleep(10)  # Increased wait time for table to load
 
                 # Download CSV
                 try:
                     download_button = wait.until(
                         EC.element_to_be_clickable((By.XPATH, '//*[@id="ComparissionTable_wrapper"]/div[1]/button[3]'))
                     )
+                    print(f"✓ Download button found, clicking...")
                     driver.execute_script("arguments[0].click();", download_button)
                 except Exception as e:
                     error_msg = f"Download button not found: {str(e)}"
@@ -545,6 +547,13 @@ If you're on Mac/Linux:
                     continue
 
                 latest_file = max(list_of_files, key=os.path.getctime)
+                
+                # Check file size
+                file_size = os.path.getsize(latest_file)
+                print(f"📁 Downloaded CSV size: {file_size} bytes")
+                if file_size < 100:  # Less than 100 bytes likely means empty or headers only
+                    print(f"⚠️  Warning: CSV file seems too small, might be empty!")
+                
                 new_filename = f"{Model_id_reference}_vs_{Model_id_current}.csv"
                 new_filepath_in_temp = os.path.join(temp_dir, new_filename) 
                 if os.path.basename(latest_file) != new_filename:
@@ -560,11 +569,20 @@ If you're on Mac/Linux:
                 
                 # Collect app names - Filter by App Owner like Project.py
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
+                    # First, check CSV headers
+                    first_line = file.readline()
+                    print(f"🔍 CSV Headers: {first_line.strip()}")
+                    file.seek(0)  # Reset to start
+                    
                     reader = csv.DictReader(file)
                     total_rows = 0
                     added_apps = 0
+                    first_row_printed = False
                     for r in reader:
                         total_rows += 1
+                        if not first_row_printed:
+                            print(f"🔍 First row sample: App Name='{r.get('App Name')}', App Owner='{r.get('App Owner')}'")
+                            first_row_printed = True
                         app_owner_value = r.get("App Owner", "").strip()
                         app_name = r.get("App Name")
                         # Only add apps where App Owner is not "None" and has value, OR app name starts with exception
