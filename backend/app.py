@@ -561,12 +561,17 @@ If you're on Mac/Linux:
                 # Collect app names - Filter by App Owner like Project.py
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
                     reader = csv.DictReader(file)
+                    total_rows = 0
+                    added_apps = 0
                     for r in reader:
+                        total_rows += 1
                         app_owner_value = r.get("App Owner", "").strip()
                         app_name = r.get("App Name")
                         # Only add apps where App Owner is not "None" and has value, OR app name starts with exception
-                        if (app_owner_value and app_owner_value != "None") or any(app_name.startswith(exception) for exception in exception_app_names):
+                        if app_name and ((app_owner_value and app_owner_value != "None") or any(app_name.startswith(exception) for exception in exception_app_names)):
                             unique_app_names.add(app_name)
+                            added_apps += 1
+                    print(f"📊 CSV has {total_rows} total rows, added {added_apps} apps to unique_app_names")
 
             # Check if all comparisons failed
             if not output_data:
