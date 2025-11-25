@@ -277,8 +277,6 @@ def compute_state_value(master_df):
     # Get version columns (all columns except "App Name")
     version_columns = [col for col in master_df.columns if col != 'App Name' and col != 'State Value']
     
-    print(f"Found {len(version_columns)} version columns for State Value computation")
-    
     # Process each row
     for index, row in master_df.iterrows():
         app_name = str(row.get('App Name', '')).strip()
@@ -299,7 +297,6 @@ def compute_state_value(master_df):
         # This takes precedence over all other conditions
         if app_name.startswith('unified-drm'):
             master_df.at[index, 'State Value'] = 1
-            print(f"Row {index}: App '{app_name}' starts with 'unified-drm' -> State Value = 1")
             continue
         
         # Condition 1: If all the App Versions are same in the same row then State Value = 0
@@ -307,13 +304,11 @@ def compute_state_value(master_df):
             unique_versions = list(set(version_values))
             if len(unique_versions) == 1 and not has_none:
                 master_df.at[index, 'State Value'] = 0
-                print(f"Row {index}: All versions are the same ('{unique_versions[0]}') -> State Value = 0")
                 continue
         
         # Condition 3: If there is any NONE value in a particular row apart from above conditions then State Value = 2.1
         if has_none:
             master_df.at[index, 'State Value'] = 2.1
-            print(f"Row {index}: Found NONE value in row -> State Value = 2.1")
             continue
         
         # Condition 4: If in a particular row any App version is different then State Value = 2.2
@@ -321,15 +316,12 @@ def compute_state_value(master_df):
             unique_versions = list(set(version_values))
             if len(unique_versions) > 1:
                 master_df.at[index, 'State Value'] = 2.2
-                print(f"Row {index}: Different versions found: {unique_versions} -> State Value = 2.2")
             else:
                 # All versions are the same but with NONE values
                 master_df.at[index, 'State Value'] = 0
-                print(f"Row {index}: All versions are the same (with NONE) -> State Value = 0")
         else:
             # Default case: no valid version data
             master_df.at[index, 'State Value'] = 3
-            print(f"Row {index}: No valid version data -> State Value = 0")
     
     return master_df
 
@@ -390,7 +382,6 @@ def apply_row_colors(excel_file_path):
             break
     
     if state_value_col is None:
-        print("Warning: State Value column not found")
         return
     
     # Apply colors to each row based on State Value
@@ -405,7 +396,6 @@ def apply_row_colors(excel_file_path):
     
     # Save the workbook
     wb.save(excel_file_path)
-    print(f"✅ Row colors applied based on State Value!")
 
 
 def run_automation(rows_data):
@@ -516,7 +506,6 @@ If you're on Mac/Linux:
                 driver.find_element(By.XPATH, '//*[@id="id_InfoLink_Version_Current"]').send_keys(Infolink_version_current)
 
                 driver.find_element(By.XPATH, '//*[@id="ComparissionForm"]/div[5]/center').click()
-                print(f"⏳ Waiting for comparison table to load for {Model_id_reference} vs {Model_id_current}...")
                 time.sleep(10)  # Increased wait time for table to load
 
                 # Download CSV
@@ -524,11 +513,9 @@ If you're on Mac/Linux:
                     download_button = wait.until(
                         EC.element_to_be_clickable((By.XPATH, '//*[@id="ComparissionTable_wrapper"]/div[1]/button[3]'))
                     )
-                    print(f"✓ Download button found, clicking...")
                     driver.execute_script("arguments[0].click();", download_button)
                 except Exception as e:
                     error_msg = f"Download button not found: {str(e)}"
-                    print(f"❌ {error_msg}")
                     failed_comparisons.append({
                         'models': f"{Model_id_reference} vs {Model_id_current}",
                         'error': error_msg
@@ -539,7 +526,6 @@ If you're on Mac/Linux:
                 list_of_files = glob.glob(os.path.join(temp_dir, '*.csv'))
                 if not list_of_files:
                     error_msg = "No CSV file was downloaded after clicking download button"
-                    print(f"❌ {error_msg}")
                     failed_comparisons.append({
                         'models': f"{Model_id_reference} vs {Model_id_current}",
                         'error': error_msg
@@ -550,9 +536,8 @@ If you're on Mac/Linux:
                 
                 # Check file size
                 file_size = os.path.getsize(latest_file)
-                print(f"📁 Downloaded CSV size: {file_size} bytes")
                 if file_size < 100:  # Less than 100 bytes likely means empty or headers only
-                    print(f"⚠️  Warning: CSV file seems too small, might be empty!")
+                    pass
                 
                 new_filename = f"{Model_id_reference}_vs_{Model_id_current}.csv"
                 new_filepath_in_temp = os.path.join(temp_dir, new_filename) 
@@ -564,33 +549,19 @@ If you're on Mac/Linux:
                     "Current_Model": Model_id_current,
                     "Downloaded_File_Path": new_filepath_in_temp,
                 })
-                print(f"Downloaded and Saved (Temp): {new_filepath_in_temp}")
                 time.sleep(10)
                 
                 # Collect app names - Filter by App Owner like Project.py
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
-                    # First, check CSV headers
-                    first_line = file.readline()
-                    print(f"🔍 CSV Headers: {first_line.strip()}")
-                    file.seek(0)  # Reset to start
-                    
                     reader = csv.DictReader(file)
                     total_rows = 0
-                    added_apps = 0
-                    first_row_printed = False
                     for r in reader:
                         total_rows += 1
-                        if not first_row_printed:
-                            print(f"🔍 First row sample: App Name='{r.get('App Name')}', App Owner='{r.get('App Owner')}'")
-                            first_row_printed = True
                         app_owner_value = r.get("App Owner", "").strip()
                         app_name = r.get("App Name")
                         # Only add apps where App Owner is not "None" and has value, OR app name starts with exception
                         if app_name and ((app_owner_value and app_owner_value != "None") or any(app_name.startswith(exception) for exception in exception_app_names)):
                             unique_app_names.add(app_name)
-                            added_apps += 1
-                    print(f"📊 CSV has {total_rows} total rows, added {added_apps} apps to unique_app_names")
-
             # Check if all comparisons failed
             if not output_data:
                 error_details = "\n".join([f"  • {f['models']}: {f['error']}" for f in failed_comparisons])
@@ -603,11 +574,9 @@ If you're on Mac/Linux:
                 }
 
             # Create Master Excel in temporary directory
-            print(f"\n📊 Collected {len(unique_app_names)} unique app names from CSV files")
-            app_names_df = pd.DataFrame(unique_app_names, columns=["App Name"])
+            app_names_df = pd.DataFrame(list(unique_app_names), columns=["App Name"])
             master_excel_file = os.path.join(temp_dir, "master_Excel.xlsx")
             app_names_df.to_excel(master_excel_file, index=False)
-            print(f"Master Excel file created at: {master_excel_file}")
 
             master_df = pd.read_excel(master_excel_file)
 
@@ -622,8 +591,8 @@ If you're on Mac/Linux:
                 model_id2 = csv_df.columns[2].split()[5]
                 model_name1 = model_dict.get(model_id1, model_id1)
                 model_name2 = model_dict.get(model_id2, model_id2)
-                new_column1 = f"{column1}_Reference_Model \n {model_name1}"
-                new_column2 = f"{column2}_Current_Model \n {model_name2}"
+                new_column1 = f"{column1}\nReference_Model\n{model_name1}"
+                new_column2 = f"{column2}\nCurrent_Model\n{model_name2}"
 
                 for app_name in master_df["App Name"]:
                     matching_rows = csv_df[csv_df["App Name"] == app_name]
@@ -633,27 +602,18 @@ If you're on Mac/Linux:
                     else:
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = ["Not Found", "Not Found"]
 
-            reference_columns = [col for col in master_df.columns if "_Reference_Model" in col]
-            current_columns = [col for col in master_df.columns if "_Current_Model" in col]
+            reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
+            current_columns = [col for col in master_df.columns if "Current_Model" in col]
             other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns]
             new_order = other_columns + reference_columns + current_columns
             master_df = master_df[new_order]
 
             # Compute State Value column
-            print("\nComputing State Value column...")
             master_df = compute_state_value(master_df)
-            
-            # Display summary statistics
-            state_counts = master_df['State Value'].value_counts().sort_index()
-            print("\nState Value Summary:")
-            for state, count in state_counts.items():
-                print(f"  State Value {state}: {count} rows")
 
             master_df.to_excel(master_excel_file, index=False)
-            print(f"Master Excel file updated with State Value: {master_excel_file}")
 
             # Apply row colors based on State Value
-            print("\nApplying row colors...")
             apply_row_colors(master_excel_file)
             
             # Read Excel file as bytes for download

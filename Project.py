@@ -111,8 +111,6 @@ def compute_state_value(master_df):
     # Get version columns (all columns except "App Name")
     version_columns = [col for col in master_df.columns if col != 'App Name' and col != 'State Value']
     
-    print(f"Found {len(version_columns)} version columns for State Value computation")
-    
     # Process each row
     for index, row in master_df.iterrows():
         app_name = str(row.get('App Name', '')).strip()
@@ -133,7 +131,6 @@ def compute_state_value(master_df):
         # This takes precedence over all other conditions
         if app_name.startswith('unified-drm'):
             master_df.at[index, 'State Value'] = 1
-            print(f"Row {index}: App '{app_name}' starts with 'unified-drm' -> State Value = 1")
             continue
         
         # Condition 1: If all the App Versions are same in the same row then State Value = 0
@@ -141,13 +138,11 @@ def compute_state_value(master_df):
             unique_versions = list(set(version_values))
             if len(unique_versions) == 1 and not has_none:
                 master_df.at[index, 'State Value'] = 0
-                print(f"Row {index}: All versions are the same ('{unique_versions[0]}') -> State Value = 0")
                 continue
         
         # Condition 3: If there is any NONE value in a particular row apart from above conditions then State Value = 2.1
         if has_none:
             master_df.at[index, 'State Value'] = 2.1
-            print(f"Row {index}: Found NONE value in row -> State Value = 2.1")
             continue
         
         # Condition 4: If in a particular row any App version is different then State Value = 2.2
@@ -155,15 +150,12 @@ def compute_state_value(master_df):
             unique_versions = list(set(version_values))
             if len(unique_versions) > 1:
                 master_df.at[index, 'State Value'] = 2.2
-                print(f"Row {index}: Different versions found: {unique_versions} -> State Value = 2.2")
             else:
                 # All versions are the same but with NONE values
                 master_df.at[index, 'State Value'] = 0
-                print(f"Row {index}: All versions are the same (with NONE) -> State Value = 0")
         else:
             # Default case: no valid version data
             master_df.at[index, 'State Value'] = 3
-            print(f"Row {index}: No valid version data -> State Value = 0")
     
     return master_df
 
@@ -203,7 +195,6 @@ def apply_row_colors(excel_file_path):
             break
     
     if state_value_col is None:
-        print("Warning: State Value column not found")
         return
     
     # Apply colors to each row based on State Value
@@ -218,7 +209,6 @@ def apply_row_colors(excel_file_path):
     
     # Save the workbook
     wb.save(excel_file_path)
-    print(f"✅ Row colors applied based on State Value!")
 
 
 def get_row_color(state_value):
@@ -364,7 +354,6 @@ def run_script(tsv_path, username, key):
                     "Current_Model": Model_id_current,
                     "Downloaded_File_Path": new_filepath_in_temp,
                 })
-                print(f"Downloaded and Saved (Temp): {new_filepath_in_temp}")
                 time.sleep(10)
                 # Collect app names
                 with open(new_filepath_in_temp, mode='r', newline='', encoding='utf-8') as file:
@@ -379,7 +368,6 @@ def run_script(tsv_path, username, key):
         app_names_df = pd.DataFrame(unique_app_names, columns=["App Name"])
         master_excel_file = os.path.join(download_dir, "master_Excel.xlsx")
         app_names_df.to_excel(master_excel_file, index=False)
-        print(f"Master Excel file created at: {master_excel_file}")
 
         master_df = pd.read_excel(master_excel_file)
 
@@ -394,8 +382,8 @@ def run_script(tsv_path, username, key):
             model_id2 = csv_df.columns[2].split()[5]
             model_name1 = model_dict[model_id1]
             model_name2 = model_dict[model_id2]
-            new_column1 = f"{column1}_Reference_Model \n {model_name1}"
-            new_column2 = f"{column2}_Current_Model \n {model_name2}"
+            new_column1 = f"{column1}\nReference_Model\n{model_name1}"
+            new_column2 = f"{column2}\nCurrent_Model\n{model_name2}"
 
             for app_name in master_df["App Name"]:
                 matching_rows = csv_df[csv_df["App Name"] == app_name]
@@ -405,27 +393,18 @@ def run_script(tsv_path, username, key):
                 else:
                     master_df.loc[master_df["App Name"] == app_name, [new_column1,new_column2]] = ["Not Found", "Not Found"]
 
-        reference_columns = [col for col in master_df.columns if "_Reference_Model" in col]
-        current_columns = [col for col in master_df.columns if "_Current_Model" in col]
+        reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
+        current_columns = [col for col in master_df.columns if "Current_Model" in col]
         other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns]
         new_order = other_columns + reference_columns + current_columns
         master_df = master_df[new_order]
 
         # Compute State Value column
-        print("\nComputing State Value column...")
         master_df = compute_state_value(master_df)
-        
-        # Display summary statistics
-        state_counts = master_df['State Value'].value_counts().sort_index()
-        print("\nState Value Summary:")
-        for state, count in state_counts.items():
-            print(f"  State Value {state}: {count} rows")
 
         master_df.to_excel(master_excel_file, index=False)
-        print(f"Master Excel file updated with State Value: {master_excel_file}")
 
         # Apply row colors based on State Value
-        print("\nApplying row colors...")
         apply_row_colors(master_excel_file)
 
         subprocess.Popen([master_excel_file], shell=True)

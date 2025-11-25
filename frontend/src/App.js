@@ -556,19 +556,6 @@ function App() {
           </Space>
         </Card>
 
-        {/* DEBUG INFO - TEMPORARY */}
-        {resultsData !== null && (
-          <Card style={{ marginTop: '20px', backgroundColor: '#fff3cd', border: '2px solid #856404' }}>
-            <Text strong style={{ color: '#856404' }}>🔍 DEBUG INFO:</Text>
-            <div>resultsData is null: {resultsData === null ? 'YES' : 'NO'}</div>
-            <div>resultsData type: {typeof resultsData}</div>
-            <div>Is Array: {Array.isArray(resultsData) ? 'YES' : 'NO'}</div>
-            <div>Length: {resultsData?.length || 0}</div>
-            <div>Columns: {resultsColumns?.length || 0}</div>
-            <div>Has Statistics: {statistics ? 'YES' : 'NO'}</div>
-          </Card>
-        )}
-
         {/* Results Section */}
         {resultsData && Array.isArray(resultsData) && resultsData.length > 0 ? (
           <Card className="main-card" style={{ marginTop: '20px' }}>
@@ -622,7 +609,9 @@ function App() {
                 <Table
                   dataSource={resultsData}
                   columns={resultsColumns.map(col => ({
-                    title: col,
+                    title: col.split('\n').map((line, i) => (
+                      <div key={i} style={{ whiteSpace: 'pre-line', textAlign: 'center' }}>{line}</div>
+                    )),
                     dataIndex: col,
                     key: col,
                     width: 150,
