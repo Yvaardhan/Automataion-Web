@@ -55,6 +55,7 @@ function App() {
   const [dnaAnalysisVisible, setDnaAnalysisVisible] = useState(false);
   const [dnaAnalysisData, setDnaAnalysisData] = useState([]);
   const [comments, setComments] = useState({});
+  const [dnaColorFilter, setDnaColorFilter] = useState('all'); // 'all', '2.1', '2.2'
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -307,6 +308,67 @@ function App() {
 
   const handleCloseDNAAnalysis = () => {
     setDnaAnalysisVisible(false);
+    setDnaColorFilter('all'); // Reset filter when closing
+  };
+
+  const handleDownloadDNAAnalysis = () => {
+    try {
+      // Get filtered data based on color filter
+      const filteredData = getFilteredDNAData();
+      
+      // Prepare data with comments
+      const dataToExport = filteredData.map(row => {
+        const rowData = {};
+        resultsColumns.forEach(col => {
+          rowData[col] = row[col];
+        });
+        rowData['Comment'] = comments[row['App Name']] || '';
+        return rowData;
+      });
+
+      // Convert to CSV
+      const headers = [...resultsColumns, 'Comment'];
+      const csvContent = [
+        headers.join(','),
+        ...dataToExport.map(row => 
+          headers.map(header => {
+            const value = row[header] || '';
+            // Escape quotes and wrap in quotes if contains comma
+            return typeof value === 'string' && (value.includes(',') || value.includes('\n')) 
+              ? `"${value.replace(/"/g, '""')}"` 
+              : value;
+          }).join(',')
+        )
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'DNA_Analysis_Report.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      message.success('DNA Analysis report downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading DNA Analysis:', error);
+      message.error('Failed to download DNA Analysis report');
+    }
+  };
+
+  const getFilteredDNAData = () => {
+    if (dnaColorFilter === 'all') {
+      return dnaAnalysisData;
+    }
+    
+    const targetStateValue = parseFloat(dnaColorFilter);
+    return dnaAnalysisData.filter(row => {
+      const stateValue = parseFloat(row['State Value']);
+      return stateValue === targetStateValue;
+    });
   };
 
   const getRowStyle = (record) => {
@@ -708,18 +770,73 @@ function App() {
         >
           <Card>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <div>
-                <Text strong style={{ fontSize: '16px' }}>
-                  Total Rows: <Tag color="orange">{dnaAnalysisData.length}</Tag>
-                </Text>
-                <Text type="secondary" style={{ marginLeft: '20px' }}>
-                  Showing apps with version differences or missing versions
-                </Text>
+              {/* Header with counts and download button */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <Text strong style={{ fontSize: '16px' }}>
+                    Total Rows: <Tag color="orange">{getFilteredDNAData().length}</Tag>
+                  </Text>
+                  <Text type="secondary" style={{ marginLeft: '20px' }}>
+                    Showing apps with version differences or missing versions
+                  </Text>
+                </div>
+                <Button
+                  type="primary"
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadDNAAnalysis}
+                  size="large"
+                  style={{ background: '#355e3b', borderColor: '#355e3b' }}
+                >
+                  Download DNA Report
+                </Button>
+              </div>
+
+              {/* Color Filter Buttons */}
+              <div style={{ 
+                background: '#f5f5f5', 
+                padding: '16px', 
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0'
+              }}>
+                <Text strong style={{ marginRight: '16px' }}>Filter by State Value:</Text>
+                <Space size="middle">
+                  <Button
+                    type={dnaColorFilter === 'all' ? 'primary' : 'default'}
+                    onClick={() => setDnaColorFilter('all')}
+                    style={dnaColorFilter === 'all' ? { background: '#1890ff', borderColor: '#1890ff' } : {}}
+                  >
+                    All ({dnaAnalysisData.length})
+                  </Button>
+                  <Button
+                    type={dnaColorFilter === '2.1' ? 'primary' : 'default'}
+                    onClick={() => setDnaColorFilter('2.1')}
+                    style={dnaColorFilter === '2.1' ? 
+                      { background: '#FFFF00', borderColor: '#FFFF00', color: '#000' } : 
+                      { borderColor: '#FFFF00', color: '#000' }
+                    }
+                  >
+                    🟨 Yellow - Missing Version (
+                    {dnaAnalysisData.filter(row => parseFloat(row['State Value']) === 2.1).length}
+                    )
+                  </Button>
+                  <Button
+                    type={dnaColorFilter === '2.2' ? 'primary' : 'default'}
+                    onClick={() => setDnaColorFilter('2.2')}
+                    style={dnaColorFilter === '2.2' ? 
+                      { background: '#FFA500', borderColor: '#FFA500', color: '#fff' } : 
+                      { borderColor: '#FFA500', color: '#FFA500' }
+                    }
+                  >
+                    🟧 Orange - Version Difference (
+                    {dnaAnalysisData.filter(row => parseFloat(row['State Value']) === 2.2).length}
+                    )
+                  </Button>
+                </Space>
               </div>
 
               <div className="table-container">
                 <Table
-                  dataSource={dnaAnalysisData}
+                  dataSource={getFilteredDNAData()}
                   columns={[
                     ...resultsColumns.map(col => ({
                       title: col.split('\n').map((line, i) => (
