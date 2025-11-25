@@ -11,7 +11,8 @@ import {
   Card,
   Tag,
   Modal,
-  Progress
+  Progress,
+  Drawer
 } from 'antd';
 import {
   PlusOutlined,
@@ -19,7 +20,8 @@ import {
   PlayCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  FileSearchOutlined
 } from '@ant-design/icons';
 import axios from 'axios';
 import './App.css';
@@ -50,6 +52,9 @@ function App() {
   const [resultsData, setResultsData] = useState(null);
   const [resultsColumns, setResultsColumns] = useState([]);
   const [statistics, setStatistics] = useState(null);
+  const [dnaAnalysisVisible, setDnaAnalysisVisible] = useState(false);
+  const [dnaAnalysisData, setDnaAnalysisData] = useState([]);
+  const [comments, setComments] = useState({});
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -273,6 +278,35 @@ function App() {
       console.error('Error downloading Excel:', error);
       message.error('Failed to download Excel file');
     }
+  };
+
+  const handleDNAAnalysis = () => {
+    // Filter data where State Value is 2.1 or 2.2
+    const filteredData = resultsData.filter(row => {
+      const stateValue = parseFloat(row['State Value']);
+      return stateValue === 2.1 || stateValue === 2.2;
+    });
+    
+    // Add row keys and initialize comments
+    const dataWithKeys = filteredData.map((row, index) => ({
+      ...row,
+      key: index,
+      Comment: comments[row['App Name']] || ''
+    }));
+    
+    setDnaAnalysisData(dataWithKeys);
+    setDnaAnalysisVisible(true);
+  };
+
+  const handleCommentChange = (appName, value) => {
+    setComments(prev => ({
+      ...prev,
+      [appName]: value
+    }));
+  };
+
+  const handleCloseDNAAnalysis = () => {
+    setDnaAnalysisVisible(false);
   };
 
   const getRowStyle = (record) => {
@@ -634,9 +668,104 @@ function App() {
                   })}
                 />
               </div>
+
+              {/* DNA Analysis Button */}
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<FileSearchOutlined />}
+                  onClick={handleDNAAnalysis}
+                  style={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none',
+                    height: '50px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                  }}
+                >
+                  🧬 DNA Analysis
+                </Button>
+              </div>
             </Space>
           </Card>
         ) : null}
+
+        {/* DNA Analysis Drawer */}
+        <Drawer
+          title={
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#355e3b' }}>
+              🧬 DNA Analysis - State Value 2.1 & 2.2
+            </div>
+          }
+          placement="right"
+          width="90%"
+          onClose={handleCloseDNAAnalysis}
+          open={dnaAnalysisVisible}
+          bodyStyle={{ padding: '24px' }}
+        >
+          <Card>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <div>
+                <Text strong style={{ fontSize: '16px' }}>
+                  Total Rows: <Tag color="orange">{dnaAnalysisData.length}</Tag>
+                </Text>
+                <Text type="secondary" style={{ marginLeft: '20px' }}>
+                  Showing apps with version differences or missing versions
+                </Text>
+              </div>
+
+              <div className="table-container">
+                <Table
+                  dataSource={dnaAnalysisData}
+                  columns={[
+                    ...resultsColumns.map(col => ({
+                      title: col.split('\n').map((line, i) => (
+                        <div key={i} style={{ whiteSpace: 'pre-line', textAlign: 'center' }}>{line}</div>
+                      )),
+                      dataIndex: col,
+                      key: col,
+                      width: 150,
+                      ellipsis: true,
+                      render: (text) => text != null ? String(text) : ''
+                    })),
+                    {
+                      title: 'Comment',
+                      dataIndex: 'Comment',
+                      key: 'Comment',
+                      width: 250,
+                      fixed: 'right',
+                      render: (text, record) => (
+                        <Input.TextArea
+                          value={comments[record['App Name']] || ''}
+                          onChange={(e) => handleCommentChange(record['App Name'], e.target.value)}
+                          placeholder="Add your comment here..."
+                          autoSize={{ minRows: 2, maxRows: 4 }}
+                          style={{ width: '100%' }}
+                        />
+                      )
+                    }
+                  ]}
+                  scroll={{ x: 'max-content', y: 600 }}
+                  pagination={{
+                    defaultPageSize: 50,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['25', '50', '100', '200'],
+                    showTotal: (total) => `Total ${total} items`
+                  }}
+                  bordered
+                  size="small"
+                  rowKey={(record, index) => index}
+                  onRow={(record) => ({
+                    style: getRowStyle(record)
+                  })}
+                />
+              </div>
+            </Space>
+          </Card>
+        </Drawer>
       </Content>
     </Layout>
   );
