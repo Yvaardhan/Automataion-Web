@@ -620,8 +620,10 @@ function App() {
                   }))}
                   scroll={{ x: 'max-content', y: 600 }}
                   pagination={{
+                    defaultPageSize: 50,
                     pageSize: 50,
                     showSizeChanger: true,
+                    pageSizeOptions: ['50', '100', '200', '500'],
                     showTotal: (total) => `Total ${total} items`
                   }}
                   bordered

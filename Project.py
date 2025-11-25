@@ -523,6 +523,7 @@ if 'master_df' in st.session_state:
     st.dataframe(
         styled_df, 
         height=800,
+        use_container_width=True,
         hide_index=False,
         column_config=None
     )

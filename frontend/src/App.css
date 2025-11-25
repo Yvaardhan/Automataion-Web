@@ -52,6 +52,12 @@
 
 .table-container {
   overflow-x: auto;
+  width: 100%;
+  position: relative;
+}
+
+.table-container .ant-table-wrapper {
+  width: 100%;
 }
 
 .button-group {
@@ -63,22 +69,33 @@
 }
 
 /* Custom scrollbar for table */
-.ant-table-body::-webkit-scrollbar {
-  height: 8px;
+.ant-table-body::-webkit-scrollbar,
+.table-container::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
 }
 
-.ant-table-body::-webkit-scrollbar-track {
+.ant-table-body::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-.ant-table-body::-webkit-scrollbar-thumb {
+.ant-table-body::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb {
   background: #888;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-.ant-table-body::-webkit-scrollbar-thumb:hover {
+.ant-table-body::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Ensure horizontal scroll is always visible */
+.ant-table-body {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
 }
 
 /* Responsive adjustments */
