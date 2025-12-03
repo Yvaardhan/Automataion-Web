@@ -2,3 +2,5 @@ streamlit
 pandas
 selenium
 openpyxl
+requests
+beautifulsoup4
