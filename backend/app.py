@@ -274,8 +274,8 @@ def compute_state_value(master_df):
     # Initialize State Value column
     master_df['State Value'] = None
     
-    # Get version columns (all columns except "App Name")
-    version_columns = [col for col in master_df.columns if col != 'App Name' and col != 'State Value']
+    # Get version columns (all columns except "App Name", "App Owner", "Work Assignment", and "State Value")
+    version_columns = [col for col in master_df.columns if col not in ['App Name', 'App Owner', 'Work Assignment', 'State Value']]
     
     # Process each row
     for index, row in master_df.iterrows():
@@ -579,6 +579,10 @@ If you're on Mac/Linux:
             app_names_df.to_excel(master_excel_file, index=False)
 
             master_df = pd.read_excel(master_excel_file)
+            
+            # Initialize App Owner and Work Assignment columns
+            master_df["App Owner"] = ""
+            master_df["Work Assignment"] = ""
 
             # Process CSVs while still in temp_dir
             for data_entry in output_data:
@@ -599,17 +603,32 @@ If you're on Mac/Linux:
                     if not matching_rows.empty:
                         extracted_data = matching_rows.iloc[:, 1:3]
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = extracted_data.iloc[:, 0:2].values
+                        
+                        # Extract App Owner (column 6) and Work Assignment (column 7) from CSV
+                        app_owner_value = matching_rows.iloc[0, 6] if len(matching_rows.columns) > 6 else ""
+                        work_assignment_value = matching_rows.iloc[0, 7] if len(matching_rows.columns) > 7 else ""
+                        
+                        # Only update if the current value is empty (to avoid overwriting with data from other CSVs)
+                        current_app_owner = master_df.loc[master_df["App Name"] == app_name, "App Owner"].values[0]
+                        current_work_assignment = master_df.loc[master_df["App Name"] == app_name, "Work Assignment"].values[0]
+                        
+                        if pd.isna(current_app_owner) or current_app_owner == "":
+                            master_df.loc[master_df["App Name"] == app_name, "App Owner"] = app_owner_value
+                        if pd.isna(current_work_assignment) or current_work_assignment == "":
+                            master_df.loc[master_df["App Name"] == app_name, "Work Assignment"] = work_assignment_value
                     else:
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = ["Not Found", "Not Found"]
 
+            # Compute State Value column first
+            master_df = compute_state_value(master_df)
+            
+            # Reorder columns: App Name first, then version columns, State Value, Work Assignment second-last, App Owner last
             reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
             current_columns = [col for col in master_df.columns if "Current_Model" in col]
-            other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns]
-            new_order = other_columns + reference_columns + current_columns
+            fixed_columns = ["App Name", "App Owner", "Work Assignment", "State Value"]
+            other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns + fixed_columns]
+            new_order = ["App Name"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
             master_df = master_df[new_order]
-
-            # Compute State Value column
-            master_df = compute_state_value(master_df)
 
             master_df.to_excel(master_excel_file, index=False)
 
