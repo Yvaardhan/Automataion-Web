@@ -410,17 +410,16 @@ def run_script(tsv_path, username, key):
                 else:
                     master_df.loc[master_df["App Name"] == app_name, [new_column1,new_column2]] = ["Not Found", "Not Found"]
 
+        # Compute State Value column first
+        master_df = compute_state_value(master_df)
+        
+        # Reorder columns: App Name first, then version columns, State Value, Work Assignment second-last, App Owner last
         reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
         current_columns = [col for col in master_df.columns if "Current_Model" in col]
-        
-        # Define specific column order: App Name, App Owner, Work Assignment, then version columns
-        fixed_columns = ["App Name", "App Owner", "Work Assignment"]
+        fixed_columns = ["App Name", "App Owner", "Work Assignment", "State Value"]
         other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns + fixed_columns]
-        new_order = fixed_columns + other_columns + reference_columns + current_columns
+        new_order = ["App Name"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
         master_df = master_df[new_order]
-
-        # Compute State Value column
-        master_df = compute_state_value(master_df)
 
         master_df.to_excel(master_excel_file, index=False)
 
