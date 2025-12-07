@@ -34,39 +34,32 @@ def extract_package_data(url):
             if not line:
                 continue
             
-            # Pattern to match the package information
-            # Looking for: text.armv //path (- number) CL_number
-            # Example: rpm-spec-name.armv //path/to/package (- 123456) 12345678
-            
             # Check if line contains both a path starting with // and .armv
             if '//' in line and '.armv' in line:
                 try:
-                    # Extract RPM Spec Name (from start to .armv inclusive)
-                    # Find the position of .armv and take everything up to and including it
-                    armv_pos = line.find('.armv')
-                    if armv_pos != -1:
-                        rpm_spec_name = line[:armv_pos + 5].strip()  # +5 to include '.armv'
-                    else:
-                        rpm_spec_name = ""
+                    # Split the line to extract components
+                    parts = line.split()
                     
-                    # Extract Package Path (from // to before space and opening parenthesis)
-                    # Find // position
-                    path_start = line.find('//')
-                    if path_start != -1:
-                        # Find where the path ends (before the space and parenthesis)
-                        # Look for pattern " (" which indicates start of (-number)
-                        paren_pos = line.find(' (', path_start)
-                        if paren_pos != -1:
-                            package_path = line[path_start:paren_pos].strip()
-                        else:
-                            package_path = ""
-                    else:
-                        package_path = ""
+                    # Extract RPM Spec Name (first part ending with .armv)
+                    rpm_spec_name = ""
+                    for part in parts:
+                        if '.armv' in part:
+                            rpm_spec_name = part
+                            break
                     
-                    # Extract CL number (last number in the line)
-                    # Use simple regex for just finding numbers
-                    cl_match = re.findall(r'\d+', line)
-                    cl_number = cl_match[-1] if cl_match else ""
+                    # Extract Package Path (part starting with //)
+                    package_path = ""
+                    for part in parts:
+                        if part.startswith('//'):
+                            package_path = part
+                            break
+                    
+                    # Extract CL number (last number-only part)
+                    cl_number = ""
+                    for part in reversed(parts):
+                        if part.isdigit():
+                            cl_number = part
+                            break
                     
                     # Only add if we found all three components
                     if rpm_spec_name and package_path and cl_number:
