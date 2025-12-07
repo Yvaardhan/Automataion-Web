@@ -42,19 +42,30 @@ def extract_package_data(url):
             if '//' in line and '.armv' in line:
                 try:
                     # Extract RPM Spec Name (from start to .armv inclusive)
-                    rpm_spec_match = re.match(r'^(.+?\.armv)', line)
-                    rpm_spec_name = rpm_spec_match.group(1).strip() if rpm_spec_match else ""
+                    # Find the position of .armv and take everything up to and including it
+                    armv_pos = line.find('.armv')
+                    if armv_pos != -1:
+                        rpm_spec_name = line[:armv_pos + 5].strip()  # +5 to include '.armv'
+                    else:
+                        rpm_spec_name = ""
                     
-                    # Extract Package Path (from // to before (-number))
-                    # Format: //path/to/package (-123456)
-                    package_path_match = re.search(r'(//.+?)\s+\(-\d+\)', line)
-                    if package_path_match:
-                        package_path = package_path_match.group(1).strip()
+                    # Extract Package Path (from // to before space and opening parenthesis)
+                    # Find // position
+                    path_start = line.find('//')
+                    if path_start != -1:
+                        # Find where the path ends (before the space and parenthesis)
+                        # Look for pattern " (" which indicates start of (-number)
+                        paren_pos = line.find(' (', path_start)
+                        if paren_pos != -1:
+                            package_path = line[path_start:paren_pos].strip()
+                        else:
+                            package_path = ""
                     else:
                         package_path = ""
                     
-                    # Extract CL number (last number in the line, after the (- number) part)
-                    cl_match = re.findall(r'\b(\d+)\b', line)
+                    # Extract CL number (last number in the line)
+                    # Use simple regex for just finding numbers
+                    cl_match = re.findall(r'\d+', line)
                     cl_number = cl_match[-1] if cl_match else ""
                     
                     # Only add if we found all three components
