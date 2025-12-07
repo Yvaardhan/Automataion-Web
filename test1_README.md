@@ -7,21 +7,21 @@
 1. **Takes a Package Link (URL)** as input
 2. **Scrapes the webpage** where package data is present in rows
 3. **Extracts 3 key pieces of information** from each line:
-   - **RPM Spec Name**: Text from the beginning of the line to the first "."
-   - **Package Path**: Path that starts with "//" and ends at "."
+   - **RPM Spec Name**: Text from the beginning of the line to ".armv" (inclusive)
+   - **Package Path**: Path that starts with "//" and ends before "(- number)"
    - **CL**: A number present at the end of the line
 4. **Generates an Excel file** with these 3 columns
 
 ## Data Format Example
 Based on the webpage content, each line follows this pattern:
 ```
-rpm-spec-name. //path/to/package. 12345678
+rpm-spec-name.armv //path/to/package (- 123456) 12345678
 ```
 
 ### Extracted Columns:
 | RPM Spec Name | Package Path | CL |
 |---------------|--------------|-----|
-| rpm-spec-name | //path/to/package. | 12345678 |
+| rpm-spec-name.armv | //path/to/package | 12345678 |
 
 ## Installation
 

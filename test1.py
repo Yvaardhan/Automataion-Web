@@ -35,21 +35,22 @@ def extract_package_data(url):
                 continue
             
             # Pattern to match the package information
-            # Looking for: text. //path. number
-            # Example: rpm-spec-name. //path/to/package. 12345678
+            # Looking for: text.armv //path (- number) CL_number
+            # Example: rpm-spec-name.armv //path/to/package (- 123456) 12345678
             
-            # Check if line contains both a path starting with // and ends with a number
-            if '//' in line:
+            # Check if line contains both a path starting with // and .armv
+            if '//' in line and '.armv' in line:
                 try:
-                    # Extract RPM Spec Name (from start to first .)
-                    rpm_spec_match = re.match(r'^([^.]+)\.', line)
+                    # Extract RPM Spec Name (from start to .armv inclusive)
+                    rpm_spec_match = re.match(r'^(.+?\.armv)', line)
                     rpm_spec_name = rpm_spec_match.group(1).strip() if rpm_spec_match else ""
                     
-                    # Extract Package Path (from // to the next .)
-                    package_path_match = re.search(r'(//[^.]+\.)', line)
+                    # Extract Package Path (from // to before (- number))
+                    # This captures //path and stops before (- number)
+                    package_path_match = re.search(r'(//[^\(]+?)(?=\s*\(-\s*\d+\))', line)
                     package_path = package_path_match.group(1).strip() if package_path_match else ""
                     
-                    # Extract CL number (last number in the line)
+                    # Extract CL number (last number in the line, after the (- number) part)
                     cl_match = re.findall(r'\b(\d+)\b', line)
                     cl_number = cl_match[-1] if cl_match else ""
                     
