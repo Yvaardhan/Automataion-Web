@@ -45,10 +45,13 @@ def extract_package_data(url):
                     rpm_spec_match = re.match(r'^(.+?\.armv)', line)
                     rpm_spec_name = rpm_spec_match.group(1).strip() if rpm_spec_match else ""
                     
-                    # Extract Package Path (from // to before (- number))
-                    # This captures //path and stops before (- number)
-                    package_path_match = re.search(r'(//[^\(]+?)(?=\s*\(-\s*\d+\))', line)
-                    package_path = package_path_match.group(1).strip() if package_path_match else ""
+                    # Extract Package Path (from // to before (-number))
+                    # Format: //path/to/package (-123456)
+                    package_path_match = re.search(r'(//.+?)\s+\(-\d+\)', line)
+                    if package_path_match:
+                        package_path = package_path_match.group(1).strip()
+                    else:
+                        package_path = ""
                     
                     # Extract CL number (last number in the line, after the (- number) part)
                     cl_match = re.findall(r'\b(\d+)\b', line)
