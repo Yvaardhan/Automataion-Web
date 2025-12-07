@@ -1,7 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
-import re
 import sys
 
 def extract_package_data(url):
@@ -19,12 +17,9 @@ def extract_package_data(url):
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         
-        # Parse the HTML content
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Extract all text content from the page
-        # Looking for lines that contain package information
-        page_text = soup.get_text()
+        # Get the text content directly (for .packages files or plain text)
+        # No need for BeautifulSoup since this is plain text, not HTML
+        page_text = response.text
         lines = page_text.strip().split('\n')
         
         package_data = []
