@@ -8,7 +8,7 @@ from mysql.connector import Error
 # Database credentials
 DB_HOST = "localhost"
 DB_USER = "root"
-DB_PASSWORD = "root"
+DB_PASSWORD = "Yash@8855"
 DB_NAME = "dna_automation"
 
 # InfoLink Server Names - For both Current and Reference use

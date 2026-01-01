@@ -56,6 +56,11 @@ function App() {
   const [dnaAnalysisData, setDnaAnalysisData] = useState([]);
   const [comments, setComments] = useState({});
   const [dnaColorFilter, setDnaColorFilter] = useState('all'); // 'all', '2.1', '2.2'
+  
+  // Package Path Modal State
+  const [packagePathModalVisible, setPackagePathModalVisible] = useState(false);
+  const [uniqueModels, setUniqueModels] = useState([]);
+  const [packagePaths, setPackagePaths] = useState({});
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -154,15 +159,57 @@ function App() {
     return true;
   };
 
+  const getUniqueModels = () => {
+    const models = new Set();
+    dataSource.forEach(row => {
+      if (row.model_name_ref) models.add(row.model_name_ref);
+      if (row.model_name_curr) models.add(row.model_name_curr);
+    });
+    return Array.from(models);
+  };
+
+  const handlePackagePathChange = (modelName, value) => {
+    setPackagePaths(prev => ({
+      ...prev,
+      [modelName]: value
+    }));
+  };
+
+  const savePackagePathsAndRunAutomation = async () => {
+    // Validate all package paths are filled
+    const missingPaths = uniqueModels.filter(model => !packagePaths[model] || !packagePaths[model].trim());
+    
+    if (missingPaths.length > 0) {
+      message.error(`Please enter package paths for: ${missingPaths.join(', ')}`);
+      return;
+    }
+
+    // Close modal and run automation with package paths
+    setPackagePathModalVisible(false);
+    runAutomationProcess();
+  };
+
   const handleRunAutomation = async () => {
     if (!validateData()) {
       return;
     }
 
+    // Get unique models
+    const models = getUniqueModels();
+    setUniqueModels(models);
+    
+    // Reset package paths for fresh entry
+    setPackagePaths({});
+    
+    // Show package path modal
+    setPackagePathModalVisible(true);
+  };
+
+  const runAutomationProcess = async () => {
     Modal.confirm({
-      title: 'Run Automation',
+      title: 'Confirm Automation',
       icon: <ExclamationCircleOutlined />,
-      content: `Are you sure you want to run automation for ${dataSource.length} row(s)? This may take several minutes.`,
+      content: `Start automation for ${dataSource.length} row(s)? This may take several minutes.`,
       okText: 'Yes, Run',
       okType: 'primary',
       cancelText: 'Cancel',
@@ -171,7 +218,7 @@ function App() {
         setProgress(0);
 
         try {
-          // Transform data to match backend format
+          // Transform data to match backend format with package paths
           const payload = dataSource.map(row => ({
             Reference_Server: row.ref_server,
             Current_Server: row.curr_server,
@@ -180,7 +227,9 @@ function App() {
             Country_reference: row.country_ref,
             Country_current: row.country_curr,
             Infolink_version_reference: row.infolink_ver_ref,
-            Infolink_version_current: row.infolink_ver_curr
+            Infolink_version_current: row.infolink_ver_curr,
+            Package_path_reference: packagePaths[row.model_name_ref] || '',
+            Package_path_current: packagePaths[row.model_name_curr] || ''
           }));
 
           // Simulate progress
@@ -883,6 +932,63 @@ function App() {
             </Space>
           </Card>
         </Drawer>
+
+        {/* Package Path Collection Modal */}
+        <Modal
+          title={
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+              📦 Enter Package Paths for Models
+            </div>
+          }
+          open={packagePathModalVisible}
+          onOk={savePackagePathsAndRunAutomation}
+          onCancel={() => setPackagePathModalVisible(false)}
+          width={700}
+          okText="Continue to Run Automation"
+          cancelText="Cancel"
+          okButtonProps={{ size: 'large' }}
+          cancelButtonProps={{ size: 'large' }}
+        >
+          <div style={{ marginBottom: '16px' }}>
+            <Text type="secondary">
+              Please enter the package path for each unique model. These paths must be entered manually each time.
+            </Text>
+          </div>
+          
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {uniqueModels.map((modelName, index) => (
+              <Card key={modelName} size="small" style={{ backgroundColor: '#f5f5f5' }}>
+                <div style={{ marginBottom: '8px' }}>
+                  <Text strong style={{ fontSize: '14px' }}>
+                    {index + 1}. Model: <Tag color="blue">{modelName}</Tag>
+                  </Text>
+                </div>
+                <Input
+                  placeholder="Enter package path (e.g., //depot/path/to/package)"
+                  value={packagePaths[modelName] || ''}
+                  onChange={(e) => handlePackagePathChange(modelName, e.target.value)}
+                  size="large"
+                  prefix={<span style={{ color: '#1890ff' }}>🔗</span>}
+                  style={{ width: '100%' }}
+                />
+                {packagePaths[modelName] && (
+                  <div style={{ marginTop: '4px' }}>
+                    <Text type="success" style={{ fontSize: '12px' }}>
+                      ✓ Path entered
+                    </Text>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </Space>
+          
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fff7e6', borderRadius: '4px', border: '1px solid #ffd591' }}>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              💡 <strong>Note:</strong> Package paths are unique per model. If a model appears multiple times in your rows, 
+              you only need to enter its package path once. Package paths are NOT saved and must be entered manually each time you run automation.
+            </Text>
+          </div>
+        </Modal>
       </Content>
     </Layout>
   );

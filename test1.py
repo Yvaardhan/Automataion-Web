@@ -1,52 +1,77 @@
 import requests
+from bs4 import BeautifulSoup
 import pandas as pd
+import re
 import sys
 
 def extract_package_data(url):
+    """
+    Fetches the package webpage and extracts data into structured format.
+    
+    Args:
+        url (str): The package webpage URL
+        
+    Returns:
+        list: List of dictionaries containing RPM Spec Name, Package Path, and CL
+    """
     try:
         print(f"Fetching data from: {url}")
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         
-        lines = response.text.split('\n')
+        # Parse the HTML content
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract all text content from the page
+        # Looking for lines that contain package information
+        page_text = soup.get_text()
+        lines = page_text.strip().split('\n')
+        
         package_data = []
         
         for line in lines:
             line = line.strip()
-            if not line or '//' not in line or '.armv' not in line:
+            if not line:
                 continue
             
-            try:
-                parts = line.split()
-                
-                rpm_spec_name = ""
-                package_path = ""
-                cl_number = ""
-                
-                for part in parts:
-                    if '.armv' in part:
-                        rpm_spec_name = part
-                    if part.startswith('//'):
-                        package_path = part
-                
-                for part in reversed(parts):
-                    if part.isdigit():
-                        cl_number = part
-                        break
-                
-                if rpm_spec_name and package_path and cl_number:
-                    package_data.append({
-                        'RPM Spec Name': rpm_spec_name,
-                        'Package Path': package_path,
-                        'CL': cl_number
-                    })
-            except:
-                continue
+            # Pattern to match the package information
+            # Looking for: text.armv7l //path (-number) CL_number
+            # Example: rpm-spec-name.armv7l //path/to/package (-123456) 789012
+            
+            # Check if line contains both a path starting with // and .armv7l
+            if '//' in line:
+                try:
+                    # Extract RPM Spec Name (from start to first .)
+                    rpm_spec_match = re.match(r'^(.+)\.(armv7l|noarch)', line)
+                    rpm_spec_name = rpm_spec_match.group(1).strip() if rpm_spec_match else ""
+                    
+                    # Extract Package Path (from // to the next #)
+                    package_path_match = re.search(r'(//[^#]+)', line)
+                    package_path = package_path_match.group(1).strip() if package_path_match else ""
+
+                    
+                    # Extract CL number (last number in the line)
+                    cl_match = re.findall(r'\b(\d+)\b', line)
+                    cl_number = cl_match[-1] if cl_match else ""
+                    
+                    # Only add if we found all three components
+                    if rpm_spec_name and package_path and cl_number:
+                        package_data.append({
+                            'RPM Spec Name': rpm_spec_name,
+                            'Package Path': package_path,
+                            'CL': cl_number
+                        })
+                except Exception as e:
+                    # Skip lines that don't match the expected format
+                    continue
         
         return package_data
         
+    except requests.RequestException as e:
+        print(f"Error fetching URL: {e}")
+        return []
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error parsing data: {e}")
         return []
 
 

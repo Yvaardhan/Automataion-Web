@@ -45,7 +45,7 @@ PASSWORD = "Yash@2003"
 # Database credentials
 DB_HOST = "localhost"
 DB_USER = "root"
-DB_PASSWORD = "root"
+DB_PASSWORD = "Yash@8855"
 DB_NAME = "dna_automation"
 
 # Dictionary to store Model_name (Model ID key from system) and its corresponding display name
