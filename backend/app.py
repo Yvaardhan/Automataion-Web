@@ -580,7 +580,8 @@ If you're on Mac/Linux:
 
             master_df = pd.read_excel(master_excel_file)
             
-            # Initialize App Owner and Work Assignment columns
+            # Initialize RPM Spec File, App Owner and Work Assignment columns
+            master_df["RPM Spec File"] = ""
             master_df["App Owner"] = ""
             master_df["Work Assignment"] = ""
 
@@ -604,14 +605,18 @@ If you're on Mac/Linux:
                         extracted_data = matching_rows.iloc[:, 1:3]
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = extracted_data.iloc[:, 0:2].values
                         
-                        # Extract App Owner (column 6) and Work Assignment (column 7) from CSV
+                        # Extract RPM Spec File (column 5), App Owner (column 6) and Work Assignment (column 7) from CSV
+                        rpm_spec_file_value = matching_rows.iloc[0, 5] if len(matching_rows.columns) > 5 else ""
                         app_owner_value = matching_rows.iloc[0, 6] if len(matching_rows.columns) > 6 else ""
                         work_assignment_value = matching_rows.iloc[0, 7] if len(matching_rows.columns) > 7 else ""
                         
                         # Only update if the current value is empty (to avoid overwriting with data from other CSVs)
+                        current_rpm_spec_file = master_df.loc[master_df["App Name"] == app_name, "RPM Spec File"].values[0]
                         current_app_owner = master_df.loc[master_df["App Name"] == app_name, "App Owner"].values[0]
                         current_work_assignment = master_df.loc[master_df["App Name"] == app_name, "Work Assignment"].values[0]
                         
+                        if pd.isna(current_rpm_spec_file) or current_rpm_spec_file == "":
+                            master_df.loc[master_df["App Name"] == app_name, "RPM Spec File"] = rpm_spec_file_value
                         if pd.isna(current_app_owner) or current_app_owner == "":
                             master_df.loc[master_df["App Name"] == app_name, "App Owner"] = app_owner_value
                         if pd.isna(current_work_assignment) or current_work_assignment == "":
@@ -622,12 +627,12 @@ If you're on Mac/Linux:
             # Compute State Value column first
             master_df = compute_state_value(master_df)
             
-            # Reorder columns: App Name first, then version columns, State Value, Work Assignment second-last, App Owner last
+            # Reorder columns: App Name first, RPM Spec File as 2nd column, then version columns, State Value, Work Assignment, App Owner last
             reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
             current_columns = [col for col in master_df.columns if "Current_Model" in col]
-            fixed_columns = ["App Name", "App Owner", "Work Assignment", "State Value"]
+            fixed_columns = ["App Name", "RPM Spec File", "App Owner", "Work Assignment", "State Value"]
             other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns + fixed_columns]
-            new_order = ["App Name"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
+            new_order = ["App Name", "RPM Spec File"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
             master_df = master_df[new_order]
 
             master_df.to_excel(master_excel_file, index=False)
