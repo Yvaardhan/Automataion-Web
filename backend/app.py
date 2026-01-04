@@ -22,6 +22,8 @@ from openpyxl.styles import PatternFill
 import io
 import json
 import platform
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -255,6 +257,193 @@ def get_all_countries(country_type=None, active_only=True):
 
 # ========== End Database Functions ==========
 
+# ========== Package Extraction Functions ==========
+
+def extract_package_data(url):
+    """
+    Fetches the package webpage and extracts data into structured format.
+    
+    Args:
+        url (str): The package webpage URL
+        
+    Returns:
+        list: List of dictionaries containing RPM Spec Name, Package Path, and CL
+    """
+    try:
+        print(f"Fetching package data from: {url}")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # Parse the HTML content
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract all text content from the page
+        page_text = soup.get_text()
+        lines = page_text.strip().split('\n')
+        
+        package_data = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Pattern to match the package information
+            # Looking for: text.armv7l //path (-number) CL_number
+            if '//' in line:
+                try:
+                    # Extract RPM Spec Name (from start to first .)
+                    rpm_spec_match = re.match(r'^(.+)\.(armv7l|noarch)', line)
+                    rpm_spec_name = rpm_spec_match.group(1).strip() if rpm_spec_match else ""
+                    
+                    # Extract Package Path (from // to the next #)
+                    package_path_match = re.search(r'(//[^#]+)', line)
+                    package_path = package_path_match.group(1).strip() if package_path_match else ""
+                    
+                    # Extract CL number (last number in the line)
+                    cl_match = re.findall(r'\b(\d+)\b', line)
+                    cl_number = cl_match[-1] if cl_match else ""
+                    
+                    # Only add if we found all three components
+                    if rpm_spec_name and package_path and cl_number:
+                        package_data.append({
+                            'RPM Spec Name': rpm_spec_name,
+                            'Package Path': package_path,
+                            'CL': cl_number
+                        })
+                except Exception as e:
+                    # Skip lines that don't match the expected format
+                    continue
+        
+        print(f"✓ Extracted {len(package_data)} package entries from {url}")
+        return package_data
+        
+    except requests.RequestException as e:
+        print(f"Error fetching URL {url}: {e}")
+        return []
+    except Exception as e:
+        print(f"Error parsing data from {url}: {e}")
+        return []
+
+def consolidate_package_data(package_paths_dict):
+    """
+    Extract package data from all model Package Path URLs and consolidate.
+    
+    Args:
+        package_paths_dict: Dictionary mapping model names to their package URLs
+        
+    Returns:
+        tuple: (consolidated_df, model_package_map)
+            - consolidated_df: DataFrame with all unique RPM Spec Names
+            - model_package_map: Dict mapping RPM Spec Name to list of models
+    """
+    all_packages = []
+    model_package_map = {}  # Maps RPM Spec Name -> [list of model names]
+    
+    for model_name, package_url in package_paths_dict.items():
+        if not package_url or not package_url.strip():
+            continue
+            
+        print(f"\n🔄 Extracting packages for model: {model_name}")
+        package_data = extract_package_data(package_url)
+        
+        for package in package_data:
+            rpm_spec_name = package['RPM Spec Name']
+            
+            # Add to all packages list
+            package['Model'] = model_name
+            all_packages.append(package)
+            
+            # Track which models have this RPM Spec Name
+            if rpm_spec_name not in model_package_map:
+                model_package_map[rpm_spec_name] = []
+            if model_name not in model_package_map[rpm_spec_name]:
+                model_package_map[rpm_spec_name].append(model_name)
+    
+    # Create consolidated DataFrame
+    if all_packages:
+        consolidated_df = pd.DataFrame(all_packages)
+        print(f"\n✅ Consolidated {len(all_packages)} package entries from {len(package_paths_dict)} models")
+        print(f"✅ Found {len(model_package_map)} unique RPM Spec Names")
+        return consolidated_df, model_package_map
+    else:
+        print("\n⚠️ No package data extracted from any URLs")
+        return None, {}
+
+def highlight_missing_packages(master_excel_file, model_package_map, master_df):
+    """
+    Highlight rows in Master Excel where RPM Spec Names from package URLs are missing.
+    
+    Args:
+        master_excel_file: Path to the Master Excel file
+        model_package_map: Dictionary mapping RPM Spec Name to list of models
+        master_df: DataFrame of Master Excel
+    """
+    try:
+        wb = load_workbook(master_excel_file)
+        ws = wb.active
+        
+        # Define fill colors
+        red_fill = PatternFill(start_color="FF6B6B", end_color="FF6B6B", fill_type="solid")  # Light red for row
+        dark_red_fill = PatternFill(start_color="8B0000", end_color="8B0000", fill_type="solid")  # Dark red for model cell
+        
+        # Get column indices
+        header_row = list(ws.iter_rows(min_row=1, max_row=1, values_only=True))[0]
+        rpm_spec_col_idx = None
+        model_col_indices = {}  # Maps model name to column index
+        
+        # Find RPM Spec File column (should be column 2)
+        for idx, header in enumerate(header_row, start=1):
+            if header == "RPM Spec File":
+                rpm_spec_col_idx = idx
+            # Find model columns (contain "Reference_Model" or "Current_Model")
+            elif header and ("Reference_Model" in str(header) or "Current_Model" in str(header)):
+                # Extract model name from header (third line after splitting by \n)
+                header_lines = str(header).split('\n')
+                if len(header_lines) >= 3:
+                    model_name = header_lines[2].strip()
+                    model_col_indices[model_name] = idx
+        
+        if rpm_spec_col_idx is None:
+            print("⚠️ Warning: RPM Spec File column not found in Master Excel")
+            return
+        
+        # Get all RPM Spec Files from Master Excel
+        master_rpm_specs = set(master_df["RPM Spec File"].dropna().astype(str).str.strip())
+        
+        # Check for missing RPM Spec Names
+        missing_count = 0
+        for rpm_spec_name, models in model_package_map.items():
+            if rpm_spec_name not in master_rpm_specs:
+                missing_count += 1
+                print(f"⚠️ Missing: {rpm_spec_name} (expected in models: {', '.join(models)})")
+                
+                # Add a new row at the end for this missing package
+                new_row_idx = ws.max_row + 1
+                
+                # Set RPM Spec Name in column 2
+                ws.cell(row=new_row_idx, column=rpm_spec_col_idx, value=rpm_spec_name)
+                
+                # Highlight entire row with light red
+                for col_idx in range(1, ws.max_column + 1):
+                    ws.cell(row=new_row_idx, column=col_idx).fill = red_fill
+                
+                # Highlight model cells with dark red
+                for model_name in models:
+                    if model_name in model_col_indices:
+                        col_idx = model_col_indices[model_name]
+                        ws.cell(row=new_row_idx, column=col_idx).fill = dark_red_fill
+                        ws.cell(row=new_row_idx, column=col_idx, value="MISSING")
+        
+        wb.save(master_excel_file)
+        print(f"\n✅ Added {missing_count} missing package rows with highlighting")
+        
+    except Exception as e:
+        print(f"Error highlighting missing packages: {str(e)}")
+        traceback.print_exc()
+
+# ========== End Package Extraction Functions ==========
+
 def extract_name(full_name):
     """Extract the pattern from full name."""
     pattern = r'\d+(?:[A-Za-z0-9_ ]+)\s*\[PRD\]|\d+(?:[A-Za-z0-9_ ]+)\s*\[STG\]'
@@ -398,12 +587,13 @@ def apply_row_colors(excel_file_path):
     wb.save(excel_file_path)
 
 
-def run_automation(rows_data):
+def run_automation(rows_data, package_paths=None):
     """
     Main automation function that processes the input rows.
     
     Args:
         rows_data: List of dictionaries containing comparison data
+        package_paths: Dictionary mapping model names to their package URLs
         
     Returns:
         Boolean indicating success
@@ -640,7 +830,25 @@ If you're on Mac/Linux:
             # Apply row colors based on State Value
             apply_row_colors(master_excel_file)
             
-            # Read Excel file as bytes for download
+            # Extract package data and highlight missing packages
+            if package_paths:
+                print("\n" + "="*80)
+                print("🔍 EXTRACTING PACKAGE DATA FROM URLs")
+                print("="*80)
+                
+                consolidated_df, model_package_map = consolidate_package_data(package_paths)
+                
+                if model_package_map:
+                    print("\n" + "="*80)
+                    print("🎨 HIGHLIGHTING MISSING PACKAGES IN MASTER EXCEL")
+                    print("="*80)
+                    highlight_missing_packages(master_excel_file, model_package_map, master_df)
+                else:
+                    print("\n⚠️ No package data to process for highlighting")
+            else:
+                print("\n⚠️ No package paths provided - skipping package extraction")
+            
+            # Read Excel file as bytes for download (after all modifications)
             with open(master_excel_file, 'rb') as f:
                 excel_bytes = f.read()
             
@@ -798,10 +1006,13 @@ def run_automation_endpoint():
             'Reference_Server', 'Current_Server',
             'Model_name_reference', 'Model_name_current',
             'Country_reference', 'Country_current',
-            'Infolink_version_reference', 'Infolink_version_current'
+            'Infolink_version_reference', 'Infolink_version_current',
+            'Package_path_reference', 'Package_path_current'
         ]
         
         processed_rows = []
+        package_paths = {}  # Collect unique package paths for each model
+        
         for idx, row in enumerate(rows):
             # Validate all fields are present
             for field in required_fields:
@@ -810,6 +1021,12 @@ def run_automation_endpoint():
                         "success": False,
                         "message": f"Row {idx + 1}: Missing or empty field '{field}'"
                     }), 400
+            
+            # Collect package paths for unique models
+            model_ref = row['Model_name_reference']
+            model_curr = row['Model_name_current']
+            package_paths[model_ref] = row['Package_path_reference']
+            package_paths[model_curr] = row['Package_path_current']
             
             # Convert model names to model IDs
             model_id_ref = get_model_id_from_name(row['Model_name_reference'])
@@ -840,8 +1057,8 @@ def run_automation_endpoint():
             }
             processed_rows.append(processed_row)
         
-        # Run the automation with converted model IDs
-        result = run_automation(processed_rows)
+        # Run the automation with converted model IDs and package paths
+        result = run_automation(processed_rows, package_paths)
         
         # Handle tuple unpacking based on success
         if len(result) == 4:

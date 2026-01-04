@@ -937,7 +937,7 @@ function App() {
         <Modal
           title={
             <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              📦 Enter Package Paths for Models
+              📦 Enter Package URLs for Models
             </div>
           }
           open={packagePathModalVisible}
@@ -951,7 +951,7 @@ function App() {
         >
           <div style={{ marginBottom: '16px' }}>
             <Text type="secondary">
-              Please enter the package path for each unique model. These paths must be entered manually each time.
+              Please enter the <strong>Package URL</strong> for each unique model. These URLs link to package webpages containing RPM spec information. URLs must be entered manually each time.
             </Text>
           </div>
           
@@ -964,7 +964,7 @@ function App() {
                   </Text>
                 </div>
                 <Input
-                  placeholder="Enter package path (e.g., //depot/path/to/package)"
+                  placeholder="Enter package URL (e.g., http://example.com/packages/model)"
                   value={packagePaths[modelName] || ''}
                   onChange={(e) => handlePackagePathChange(modelName, e.target.value)}
                   size="large"
@@ -982,10 +982,11 @@ function App() {
             ))}
           </Space>
           
-          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fff7e6', borderRadius: '4px', border: '1px solid #ffd591' }}>
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#e6f7ff', borderRadius: '4px', border: '1px solid #91d5ff' }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              💡 <strong>Note:</strong> Package paths are unique per model. If a model appears multiple times in your rows, 
-              you only need to enter its package path once. Package paths are NOT saved and must be entered manually each time you run automation.
+              💡 <strong>How it works:</strong> Package URLs are used to extract RPM spec information for each model. 
+              The system will scrape these URLs, extract package data, and compare it with the Master Excel to identify missing packages. 
+              Missing packages will be highlighted in RED with model cells in DARK RED.
             </Text>
           </div>
         </Modal>
