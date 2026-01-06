@@ -379,6 +379,7 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
         model_package_map: Dictionary mapping RPM Spec Name to list of models
         master_df: DataFrame of Master Excel
     """
+    wb = None
     try:
         wb = load_workbook(master_excel_file)
         ws = wb.active
@@ -441,6 +442,10 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
     except Exception as e:
         print(f"Error highlighting missing packages: {str(e)}")
         traceback.print_exc()
+    finally:
+        # Always close the workbook to release file lock
+        if wb is not None:
+            wb.close()
 
 # ========== End Package Extraction Functions ==========
 
@@ -561,30 +566,34 @@ def apply_row_colors(excel_file_path):
     
     # Load the workbook
     wb = load_workbook(excel_file_path)
-    ws = wb.active
-    
-    # Find the State Value column index
-    state_value_col = None
-    for col_idx, cell in enumerate(ws[1], start=1):
-        if cell.value == "State Value":
-            state_value_col = col_idx
-            break
-    
-    if state_value_col is None:
-        return
-    
-    # Apply colors to each row based on State Value
-    for row_idx in range(2, ws.max_row + 1):  # Start from row 2 (skip header)
-        state_value = ws.cell(row=row_idx, column=state_value_col).value
+    try:
+        ws = wb.active
         
-        if state_value in colors:
-            fill = colors[state_value]
-            # Apply fill to all cells in the row
-            for col_idx in range(1, ws.max_column + 1):
-                ws.cell(row=row_idx, column=col_idx).fill = fill
-    
-    # Save the workbook
-    wb.save(excel_file_path)
+        # Find the State Value column index
+        state_value_col = None
+        for col_idx, cell in enumerate(ws[1], start=1):
+            if cell.value == "State Value":
+                state_value_col = col_idx
+                break
+        
+        if state_value_col is None:
+            return
+        
+        # Apply colors to each row based on State Value
+        for row_idx in range(2, ws.max_row + 1):  # Start from row 2 (skip header)
+            state_value = ws.cell(row=row_idx, column=state_value_col).value
+            
+            if state_value in colors:
+                fill = colors[state_value]
+                # Apply fill to all cells in the row
+                for col_idx in range(1, ws.max_column + 1):
+                    ws.cell(row=row_idx, column=col_idx).fill = fill
+        
+        # Save the workbook
+        wb.save(excel_file_path)
+    finally:
+        # Always close the workbook to release file lock
+        wb.close()
 
 
 def run_automation(rows_data, package_paths=None):
@@ -848,9 +857,28 @@ If you're on Mac/Linux:
             else:
                 print("\n⚠️ No package paths provided - skipping package extraction")
             
+            # Small delay to ensure Windows releases file lock
+            time.sleep(0.5)
+            
             # Read Excel file as bytes for download (after all modifications)
-            with open(master_excel_file, 'rb') as f:
-                excel_bytes = f.read()
+            max_retries = 3
+            excel_bytes = None
+            for attempt in range(max_retries):
+                try:
+                    with open(master_excel_file, 'rb') as f:
+                        excel_bytes = f.read()
+                    break  # Success, exit retry loop
+                except (PermissionError, OSError) as e:
+                    if attempt < max_retries - 1:
+                        print(f"⚠️ File locked, retrying in 1 second... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(1)
+                    else:
+                        error_msg = f"Failed to read Excel file after {max_retries} attempts: {str(e)}"
+                        print(f"❌ {error_msg}")
+                        return False, None, None, {
+                            'error': 'File access error',
+                            'details': error_msg
+                        }
             
             # Calculate statistics
             state_counts = master_df['State Value'].value_counts().sort_index()
