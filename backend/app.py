@@ -458,25 +458,41 @@ def extract_name(full_name):
     match = re.search(pattern, full_name)
     return match.group(0) if match else "No match found."
 
-def check_rpm_spec_differences(master_df):
+def check_missing_rpm_specs(master_df, model_package_map):
     """
-    Check if RPM Spec Names are different between Reference and Current models.
-    Set State Value to 3.0 for rows with different RPM Spec Names.
+    PRIORITY: Check if RPM Spec Names from Master Excel exist in package URL data.
+    Set State Value to 3.0 for rows where RPM Spec Name is NOT found for a model.
+    Also track which model cells need dark red highlighting.
     
     Args:
         master_df: DataFrame with app data
+        model_package_map: Dict mapping RPM Spec Name -> [list of model names] from package URLs
         
     Returns:
-        DataFrame with State Value updated for RPM Spec Name differences
+        tuple: (updated DataFrame, dict of cells to highlight dark red)
     """
     # Get reference and current model columns
     reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
     current_columns = [col for col in master_df.columns if "Current_Model" in col]
     
-    if not reference_columns or not current_columns:
-        return master_df
+    # Extract model names from column headers
+    ref_models = []
+    curr_models = []
     
-    # Check each row for RPM Spec Name differences
+    for col in reference_columns:
+        header_lines = str(col).split('\n')
+        if len(header_lines) >= 3:
+            ref_models.append(header_lines[2].strip())
+    
+    for col in current_columns:
+        header_lines = str(col).split('\n')
+        if len(header_lines) >= 3:
+            curr_models.append(header_lines[2].strip())
+    
+    # Track cells that need dark red highlighting
+    dark_red_cells = {}  # {row_idx: [list of column names]}
+    
+    # Check each row
     for idx, row in master_df.iterrows():
         rpm_spec_name = row.get("RPM Spec Name", "")
         
@@ -484,36 +500,34 @@ def check_rpm_spec_differences(master_df):
         if pd.isna(rpm_spec_name) or str(rpm_spec_name).strip() == "":
             continue
         
-        # Check if there are differences in version columns
-        ref_values = []
-        curr_values = []
+        rpm_spec_name = str(rpm_spec_name).strip()
+        is_missing_in_any_model = False
+        missing_model_columns = []
         
-        for ref_col in reference_columns:
-            ref_val = row.get(ref_col, "")
-            if pd.notna(ref_val) and str(ref_val).strip() != "" and str(ref_val) != "Not Found":
-                ref_values.append(str(ref_val).strip())
+        # Check reference models
+        for i, ref_col in enumerate(reference_columns):
+            if i < len(ref_models):
+                model_name = ref_models[i]
+                # Check if this RPM Spec Name exists for this model in package data
+                if rpm_spec_name not in model_package_map or model_name not in model_package_map.get(rpm_spec_name, []):
+                    is_missing_in_any_model = True
+                    missing_model_columns.append(ref_col)
         
-        for curr_col in current_columns:
-            curr_val = row.get(curr_col, "")
-            if pd.notna(curr_val) and str(curr_val).strip() != "" and str(curr_val) != "Not Found":
-                curr_values.append(str(curr_val).strip())
+        # Check current models
+        for i, curr_col in enumerate(current_columns):
+            if i < len(curr_models):
+                model_name = curr_models[i]
+                # Check if this RPM Spec Name exists for this model in package data
+                if rpm_spec_name not in model_package_map or model_name not in model_package_map.get(rpm_spec_name, []):
+                    is_missing_in_any_model = True
+                    missing_model_columns.append(curr_col)
         
-        # If both have values and they are different, set State Value to 3.0
-        if ref_values and curr_values:
-            # Check if any values are different
-            has_difference = False
-            for ref_val in ref_values:
-                for curr_val in curr_values:
-                    if ref_val != curr_val:
-                        has_difference = True
-                        break
-                if has_difference:
-                    break
-            
-            if has_difference:
-                master_df.loc[idx, "State Value"] = 3.0
+        # If RPM Spec Name is missing for any model, set State Value to 3.0
+        if is_missing_in_any_model:
+            master_df.loc[idx, "State Value"] = 3.0
+            dark_red_cells[idx] = missing_model_columns
     
-    return master_df
+    return master_df, dark_red_cells
 
 def compute_state_value(master_df):
     """
@@ -525,14 +539,20 @@ def compute_state_value(master_df):
     Returns:
         pd.DataFrame: Updated DataFrame with State Value column
     """
-    # Initialize State Value column
-    master_df['State Value'] = None
+    # Initialize State Value column only if it doesn't exist
+    if 'State Value' not in master_df.columns:
+        master_df['State Value'] = None
     
-    # Get version columns (all columns except "App Name", "App Owner", "Work Assignment", and "State Value")
-    version_columns = [col for col in master_df.columns if col not in ['App Name', 'App Owner', 'Work Assignment', 'State Value']]
+    # Get version columns (all columns except "App Name", "App Owner", "Work Assignment", "State Value", and "RPM Spec Name")
+    version_columns = [col for col in master_df.columns if col not in ['App Name', 'RPM Spec Name', 'App Owner', 'Work Assignment', 'State Value']]
     
     # Process each row
     for index, row in master_df.iterrows():
+        # PRIORITY: If State Value is already 3.0 (missing RPM Spec), don't override it
+        current_state = row.get('State Value')
+        if pd.notna(current_state) and current_state == 3.0:
+            continue
+        
         app_name = str(row.get('App Name', '')).strip()
         
         # Get all version values for this row
@@ -548,7 +568,7 @@ def compute_state_value(master_df):
                 version_values.append(str(value).strip())
         
         # Condition 2: If the App Name is Started with "unified-drm" then State Value = 1
-        # This takes precedence over all other conditions
+        # This takes precedence over all other conditions (except 3.0)
         if app_name.startswith('unified-drm'):
             master_df.at[index, 'State Value'] = 1
             continue
@@ -601,19 +621,20 @@ def get_row_color(state_value):
     return colors.get(state_value, "#FFFFFF")
 
 
-def apply_row_colors(excel_file_path):
+def apply_row_colors(excel_file_path, dark_red_cells=None):
     """
-    Apply row colors based on State Value.
+    Apply row colors based on State Value and dark red highlighting for specific cells.
     
     Colors:
     - 0: Medium Green
     - 1: Gray
     - 2.1: Yellow
     - 2.2: Orange
-    - 3: Medium Red
+    - 3: Medium Red (row) + Dark Red (specific cells for missing RPM Spec Names)
     
     Args:
         excel_file_path (str): Path to the Excel file
+        dark_red_cells (dict): Dictionary mapping row index to list of column names for dark red highlighting
     """
     # Define color fills
     colors = {
@@ -624,6 +645,9 @@ def apply_row_colors(excel_file_path):
         3.0: PatternFill(start_color="CD5C5C", end_color="CD5C5C", fill_type="solid")       # Medium Red
     }
     
+    # Dark red fill for specific cells
+    dark_red_fill = PatternFill(start_color="8B0000", end_color="8B0000", fill_type="solid")
+    
     # Load the workbook
     wb = load_workbook(excel_file_path)
     try:
@@ -631,10 +655,13 @@ def apply_row_colors(excel_file_path):
         
         # Find the State Value column index
         state_value_col = None
+        header_row = {}  # Maps column name to column index
+        
         for col_idx, cell in enumerate(ws[1], start=1):
             if cell.value == "State Value":
                 state_value_col = col_idx
-                break
+            if cell.value:
+                header_row[str(cell.value)] = col_idx
         
         if state_value_col is None:
             return
@@ -648,6 +675,17 @@ def apply_row_colors(excel_file_path):
                 # Apply fill to all cells in the row
                 for col_idx in range(1, ws.max_column + 1):
                     ws.cell(row=row_idx, column=col_idx).fill = fill
+        
+        # Apply dark red highlighting to specific cells (missing RPM Spec Names)
+        if dark_red_cells:
+            for df_idx, column_names in dark_red_cells.items():
+                # df_idx is 0-based, Excel row is 1-based + 1 for header = df_idx + 2
+                excel_row_idx = df_idx + 2
+                
+                for col_name in column_names:
+                    if col_name in header_row:
+                        col_idx = header_row[col_name]
+                        ws.cell(row=excel_row_idx, column=col_idx).fill = dark_red_fill
         
         # Save the workbook
         wb.save(excel_file_path)
@@ -891,11 +929,32 @@ If you're on Mac/Linux:
                     else:
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = ["Not Found", "Not Found"]
 
-            # Compute State Value column first
-            master_df = compute_state_value(master_df)
+            # ========== PRIORITY 1: Extract Package Data FIRST ==========
+            dark_red_cells = {}  # Track cells for dark red highlighting
+            model_package_map = {}
             
-            # PRIORITY: Check RPM Spec Name differences and set State Value to 3.0 BEFORE other highlighting
-            master_df = check_rpm_spec_differences(master_df)
+            if package_paths:
+                print("\n" + "="*80)
+                print("🔍 EXTRACTING PACKAGE DATA FROM URLs (PRIORITY)")
+                print("="*80)
+                
+                consolidated_df, model_package_map = consolidate_package_data(package_paths)
+                
+                if not model_package_map:
+                    print("\n⚠️ No package data extracted from URLs")
+            else:
+                print("\n⚠️ No package paths provided - skipping package extraction")
+            
+            # ========== PRIORITY 2: Check Missing RPM Specs BEFORE Other State Values ==========
+            if model_package_map:
+                print("\n" + "="*80)
+                print("🚨 PRIORITY: CHECKING MISSING RPM SPEC NAMES")
+                print("="*80)
+                master_df, dark_red_cells = check_missing_rpm_specs(master_df, model_package_map)
+                print(f"✓ Found {len(dark_red_cells)} rows with missing RPM Spec Names (State Value = 3.0)")
+            
+            # ========== PRIORITY 3: Compute Other State Values (won't override 3.0) ==========
+            master_df = compute_state_value(master_df)
             
             # Reorder columns: App Name first, RPM Spec Name as 2nd column, then version columns, State Value, Work Assignment, App Owner last
             reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
@@ -912,31 +971,23 @@ If you're on Mac/Linux:
             # Small delay to ensure file handle is released on Windows
             time.sleep(0.2)
 
-            # Apply row colors based on State Value
-            apply_row_colors(master_excel_file)
+            # ========== PRIORITY 4: Apply Row Colors with Dark Red Cells ==========
+            print("\n" + "="*80)
+            print("🎨 APPLYING ROW COLORS (RED HIGHLIGHTING FIRST)")
+            print("="*80)
+            apply_row_colors(master_excel_file, dark_red_cells)
             
             # Small delay after color application
             time.sleep(0.2)
             
-            # Extract package data and highlight missing packages
-            if package_paths:
+            # Add missing packages to Excel (new rows at bottom)
+            if model_package_map:
                 print("\n" + "="*80)
-                print("🔍 EXTRACTING PACKAGE DATA FROM URLs")
+                print("➕ ADDING COMPLETELY MISSING PACKAGES AS NEW ROWS")
                 print("="*80)
-                
-                consolidated_df, model_package_map = consolidate_package_data(package_paths)
-                
-                if model_package_map:
-                    print("\n" + "="*80)
-                    print("🎨 HIGHLIGHTING MISSING PACKAGES IN MASTER EXCEL")
-                    print("="*80)
-                    highlight_missing_packages(master_excel_file, model_package_map, master_df)
-                    # Small delay after highlighting
-                    time.sleep(0.3)
-                else:
-                    print("\n⚠️ No package data to process for highlighting")
-            else:
-                print("\n⚠️ No package paths provided - skipping package extraction")
+                highlight_missing_packages(master_excel_file, model_package_map, master_df)
+                # Small delay after highlighting
+                time.sleep(0.3)
             
             # Force garbage collection to release any file handles
             gc.collect()
