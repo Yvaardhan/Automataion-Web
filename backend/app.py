@@ -24,6 +24,7 @@ import json
 import platform
 import requests
 from bs4 import BeautifulSoup
+import gc
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -446,6 +447,8 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
         # Always close the workbook to release file lock
         if wb is not None:
             wb.close()
+            # Force garbage collection to release file handle
+            gc.collect()
 
 # ========== End Package Extraction Functions ==========
 
@@ -594,6 +597,8 @@ def apply_row_colors(excel_file_path):
     finally:
         # Always close the workbook to release file lock
         wb.close()
+        # Force garbage collection to release file handle
+        gc.collect()
 
 
 def run_automation(rows_data, package_paths=None):
@@ -775,9 +780,15 @@ If you're on Mac/Linux:
             # Create Master Excel in temporary directory
             app_names_df = pd.DataFrame(list(unique_app_names), columns=["App Name"])
             master_excel_file = os.path.join(temp_dir, "master_Excel.xlsx")
-            app_names_df.to_excel(master_excel_file, index=False)
+            
+            # Use context manager to ensure file is properly closed
+            with pd.ExcelWriter(master_excel_file, engine='openpyxl') as writer:
+                app_names_df.to_excel(writer, index=False)
+            
+            # Small delay for Windows file handle release
+            time.sleep(0.2)
 
-            master_df = pd.read_excel(master_excel_file)
+            master_df = pd.read_excel(master_excel_file, engine='openpyxl')
             
             # Initialize RPM Spec File, App Owner and Work Assignment columns
             master_df["RPM Spec File"] = ""
@@ -834,10 +845,18 @@ If you're on Mac/Linux:
             new_order = ["App Name", "RPM Spec File"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
             master_df = master_df[new_order]
 
-            master_df.to_excel(master_excel_file, index=False)
+            # Write Excel file with proper context manager to ensure file is closed
+            with pd.ExcelWriter(master_excel_file, engine='openpyxl') as writer:
+                master_df.to_excel(writer, index=False)
+            
+            # Small delay to ensure file handle is released on Windows
+            time.sleep(0.2)
 
             # Apply row colors based on State Value
             apply_row_colors(master_excel_file)
+            
+            # Small delay after color application
+            time.sleep(0.2)
             
             # Extract package data and highlight missing packages
             if package_paths:
@@ -852,16 +871,21 @@ If you're on Mac/Linux:
                     print("🎨 HIGHLIGHTING MISSING PACKAGES IN MASTER EXCEL")
                     print("="*80)
                     highlight_missing_packages(master_excel_file, model_package_map, master_df)
+                    # Small delay after highlighting
+                    time.sleep(0.3)
                 else:
                     print("\n⚠️ No package data to process for highlighting")
             else:
                 print("\n⚠️ No package paths provided - skipping package extraction")
             
-            # Small delay to ensure Windows releases file lock
-            time.sleep(0.5)
+            # Force garbage collection to release any file handles
+            gc.collect()
+            
+            # Additional delay to ensure Windows releases all file locks
+            time.sleep(1.0)
             
             # Read Excel file as bytes for download (after all modifications)
-            max_retries = 3
+            max_retries = 5
             excel_bytes = None
             for attempt in range(max_retries):
                 try:
@@ -870,8 +894,9 @@ If you're on Mac/Linux:
                     break  # Success, exit retry loop
                 except (PermissionError, OSError) as e:
                     if attempt < max_retries - 1:
-                        print(f"⚠️ File locked, retrying in 1 second... (attempt {attempt + 1}/{max_retries})")
-                        time.sleep(1)
+                        print(f"⚠️ File locked, retrying in 1.5 seconds... (attempt {attempt + 1}/{max_retries})")
+                        gc.collect()  # Force garbage collection
+                        time.sleep(1.5)
                     else:
                         error_msg = f"Failed to read Excel file after {max_retries} attempts: {str(e)}"
                         print(f"❌ {error_msg}")
