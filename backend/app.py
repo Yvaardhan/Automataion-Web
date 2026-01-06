@@ -394,9 +394,9 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
         rpm_spec_col_idx = None
         model_col_indices = {}  # Maps model name to column index
         
-        # Find RPM Spec File column (should be column 2)
+        # Find RPM Spec Name column (should be column 2)
         for idx, header in enumerate(header_row, start=1):
-            if header == "RPM Spec File":
+            if header == "RPM Spec Name":
                 rpm_spec_col_idx = idx
             # Find model columns (contain "Reference_Model" or "Current_Model")
             elif header and ("Reference_Model" in str(header) or "Current_Model" in str(header)):
@@ -407,11 +407,11 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
                     model_col_indices[model_name] = idx
         
         if rpm_spec_col_idx is None:
-            print("⚠️ Warning: RPM Spec File column not found in Master Excel")
+            print("⚠️ Warning: RPM Spec Name column not found in Master Excel")
             return
         
-        # Get all RPM Spec Files from Master Excel
-        master_rpm_specs = set(master_df["RPM Spec File"].dropna().astype(str).str.strip())
+        # Get all RPM Spec Names from Master Excel
+        master_rpm_specs = set(master_df["RPM Spec Name"].dropna().astype(str).str.strip())
         
         # Check for missing RPM Spec Names
         missing_count = 0
@@ -457,6 +457,63 @@ def extract_name(full_name):
     pattern = r'\d+(?:[A-Za-z0-9_ ]+)\s*\[PRD\]|\d+(?:[A-Za-z0-9_ ]+)\s*\[STG\]'
     match = re.search(pattern, full_name)
     return match.group(0) if match else "No match found."
+
+def check_rpm_spec_differences(master_df):
+    """
+    Check if RPM Spec Names are different between Reference and Current models.
+    Set State Value to 3.0 for rows with different RPM Spec Names.
+    
+    Args:
+        master_df: DataFrame with app data
+        
+    Returns:
+        DataFrame with State Value updated for RPM Spec Name differences
+    """
+    # Get reference and current model columns
+    reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
+    current_columns = [col for col in master_df.columns if "Current_Model" in col]
+    
+    if not reference_columns or not current_columns:
+        return master_df
+    
+    # Check each row for RPM Spec Name differences
+    for idx, row in master_df.iterrows():
+        rpm_spec_name = row.get("RPM Spec Name", "")
+        
+        # Skip if no RPM Spec Name
+        if pd.isna(rpm_spec_name) or str(rpm_spec_name).strip() == "":
+            continue
+        
+        # Check if there are differences in version columns
+        ref_values = []
+        curr_values = []
+        
+        for ref_col in reference_columns:
+            ref_val = row.get(ref_col, "")
+            if pd.notna(ref_val) and str(ref_val).strip() != "" and str(ref_val) != "Not Found":
+                ref_values.append(str(ref_val).strip())
+        
+        for curr_col in current_columns:
+            curr_val = row.get(curr_col, "")
+            if pd.notna(curr_val) and str(curr_val).strip() != "" and str(curr_val) != "Not Found":
+                curr_values.append(str(curr_val).strip())
+        
+        # If both have values and they are different, set State Value to 3.0
+        if ref_values and curr_values:
+            # Check if any values are different
+            has_difference = False
+            for ref_val in ref_values:
+                for curr_val in curr_values:
+                    if ref_val != curr_val:
+                        has_difference = True
+                        break
+                if has_difference:
+                    break
+            
+            if has_difference:
+                master_df.loc[idx, "State Value"] = 3.0
+    
+    return master_df
 
 def compute_state_value(master_df):
     """
@@ -790,8 +847,8 @@ If you're on Mac/Linux:
 
             master_df = pd.read_excel(master_excel_file, engine='openpyxl')
             
-            # Initialize RPM Spec File, App Owner and Work Assignment columns
-            master_df["RPM Spec File"] = ""
+            # Initialize RPM Spec Name, App Owner and Work Assignment columns
+            master_df["RPM Spec Name"] = ""
             master_df["App Owner"] = ""
             master_df["Work Assignment"] = ""
 
@@ -815,18 +872,18 @@ If you're on Mac/Linux:
                         extracted_data = matching_rows.iloc[:, 1:3]
                         master_df.loc[master_df["App Name"] == app_name, [new_column1, new_column2]] = extracted_data.iloc[:, 0:2].values
                         
-                        # Extract RPM Spec File (column 5), App Owner (column 6) and Work Assignment (column 7) from CSV
+                        # Extract RPM Spec Name (column 5), App Owner (column 6) and Work Assignment (column 7) from CSV
                         rpm_spec_file_value = matching_rows.iloc[0, 5] if len(matching_rows.columns) > 5 else ""
                         app_owner_value = matching_rows.iloc[0, 6] if len(matching_rows.columns) > 6 else ""
                         work_assignment_value = matching_rows.iloc[0, 7] if len(matching_rows.columns) > 7 else ""
                         
                         # Only update if the current value is empty (to avoid overwriting with data from other CSVs)
-                        current_rpm_spec_file = master_df.loc[master_df["App Name"] == app_name, "RPM Spec File"].values[0]
+                        current_rpm_spec_file = master_df.loc[master_df["App Name"] == app_name, "RPM Spec Name"].values[0]
                         current_app_owner = master_df.loc[master_df["App Name"] == app_name, "App Owner"].values[0]
                         current_work_assignment = master_df.loc[master_df["App Name"] == app_name, "Work Assignment"].values[0]
                         
                         if pd.isna(current_rpm_spec_file) or current_rpm_spec_file == "":
-                            master_df.loc[master_df["App Name"] == app_name, "RPM Spec File"] = rpm_spec_file_value
+                            master_df.loc[master_df["App Name"] == app_name, "RPM Spec Name"] = rpm_spec_file_value
                         if pd.isna(current_app_owner) or current_app_owner == "":
                             master_df.loc[master_df["App Name"] == app_name, "App Owner"] = app_owner_value
                         if pd.isna(current_work_assignment) or current_work_assignment == "":
@@ -837,12 +894,15 @@ If you're on Mac/Linux:
             # Compute State Value column first
             master_df = compute_state_value(master_df)
             
-            # Reorder columns: App Name first, RPM Spec File as 2nd column, then version columns, State Value, Work Assignment, App Owner last
+            # PRIORITY: Check RPM Spec Name differences and set State Value to 3.0 BEFORE other highlighting
+            master_df = check_rpm_spec_differences(master_df)
+            
+            # Reorder columns: App Name first, RPM Spec Name as 2nd column, then version columns, State Value, Work Assignment, App Owner last
             reference_columns = [col for col in master_df.columns if "Reference_Model" in col]
             current_columns = [col for col in master_df.columns if "Current_Model" in col]
-            fixed_columns = ["App Name", "RPM Spec File", "App Owner", "Work Assignment", "State Value"]
+            fixed_columns = ["App Name", "RPM Spec Name", "App Owner", "Work Assignment", "State Value"]
             other_columns = [col for col in master_df.columns if col not in reference_columns + current_columns + fixed_columns]
-            new_order = ["App Name", "RPM Spec File"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
+            new_order = ["App Name", "RPM Spec Name"] + other_columns + reference_columns + current_columns + ["State Value", "Work Assignment", "App Owner"]
             master_df = master_df[new_order]
 
             # Write Excel file with proper context manager to ensure file is closed
