@@ -1284,22 +1284,40 @@ def download_excel():
         Excel file as attachment
     """
     try:
+        print("Download Excel endpoint called")
+        print(f"Excel bytes available: {latest_data['excel_bytes'] is not None}")
+        
         if latest_data['excel_bytes'] is None:
+            print("No Excel bytes found in latest_data")
             return jsonify({
                 "success": False,
                 "message": "No Excel file available. Please run automation first."
             }), 404
         
+        print(f"Excel bytes size: {len(latest_data['excel_bytes'])} bytes")
+        
         # Create a BytesIO object from the stored bytes
         excel_io = io.BytesIO(latest_data['excel_bytes'])
         excel_io.seek(0)
         
-        return send_file(
-            excel_io,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name='master_Excel.xlsx'
-        )
+        print("Sending Excel file...")
+        
+        # Try with download_name first (Flask 2.2+), fallback to attachment_filename
+        try:
+            return send_file(
+                excel_io,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name='master_Excel.xlsx'
+            )
+        except TypeError:
+            # Fallback for older Flask versions
+            return send_file(
+                excel_io,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                attachment_filename='master_Excel.xlsx'
+            )
     except Exception as e:
         print(f"Error downloading Excel: {str(e)}")
         traceback.print_exc()
