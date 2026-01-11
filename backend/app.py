@@ -108,7 +108,8 @@ model_dict = {
     "24_PTML_SM8_T10_AT": "M80D_AT_T10",
 }
 
-exception_app_names = {
+# Default exception app names (always included)
+default_exception_app_names = {
     "User Guide",
     "E_manual",
 }
@@ -696,17 +697,27 @@ def apply_row_colors(excel_file_path, dark_red_cells=None):
         gc.collect()
 
 
-def run_automation(rows_data, package_paths=None):
+def run_automation(rows_data, package_paths=None, user_exception_apps=None):
     """
     Main automation function that processes the input rows.
     
     Args:
         rows_data: List of dictionaries containing comparison data
         package_paths: Dictionary mapping model names to their package URLs
+        user_exception_apps: List of user-provided exception app names
         
     Returns:
         Boolean indicating success
     """
+    # Merge default exception app names with user-provided ones
+    exception_app_names = default_exception_app_names.copy()
+    if user_exception_apps:
+        # Add user-provided exception app names to the set
+        for app_name in user_exception_apps:
+            if app_name and app_name.strip():
+                exception_app_names.add(app_name.strip())
+    
+    print(f"\n📋 Exception App Names: {exception_app_names}")
     # Verify EdgeDriver exists
     if not os.path.exists(driver_path):
         current_os = platform.system()
@@ -1165,6 +1176,11 @@ def run_automation_endpoint():
                 "message": "At least one row is required."
             }), 400
         
+        # Get user-provided exception app names (optional)
+        user_exception_apps = data.get('exception_app_names', [])
+        if user_exception_apps:
+            print(f"\n📝 User provided {len(user_exception_apps)} exception app names: {user_exception_apps}")
+        
         # Validate each row and convert model names to model IDs
         required_fields = [
             'Reference_Server', 'Current_Server',
@@ -1221,8 +1237,8 @@ def run_automation_endpoint():
             }
             processed_rows.append(processed_row)
         
-        # Run the automation with converted model IDs and package paths
-        result = run_automation(processed_rows, package_paths)
+        # Run the automation with converted model IDs, package paths, and exception app names
+        result = run_automation(processed_rows, package_paths, user_exception_apps)
         
         # Handle tuple unpacking based on success
         if len(result) == 4:

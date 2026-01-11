@@ -61,6 +61,7 @@ function App() {
   const [packagePathModalVisible, setPackagePathModalVisible] = useState(false);
   const [uniqueModels, setUniqueModels] = useState([]);
   const [packagePaths, setPackagePaths] = useState({});
+  const [exceptionAppNames, setExceptionAppNames] = useState(''); // Comma-separated exception app names
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -198,8 +199,9 @@ function App() {
     const models = getUniqueModels();
     setUniqueModels(models);
     
-    // Reset package paths for fresh entry
+    // Reset package paths and exception app names for fresh entry
     setPackagePaths({});
+    setExceptionAppNames('');
     
     // Show package path modal
     setPackagePathModalVisible(true);
@@ -243,8 +245,14 @@ function App() {
             });
           }, 3000);
 
+          // Parse exception app names (comma-separated)
+          const exceptionAppsList = exceptionAppNames
+            ? exceptionAppNames.split(',').map(name => name.trim()).filter(name => name)
+            : [];
+
           const response = await axios.post('/api/run-automation', {
-            rows: payload
+            rows: payload,
+            exception_app_names: exceptionAppsList
           });
 
           clearInterval(progressInterval);
@@ -981,6 +989,37 @@ function App() {
               </Card>
             ))}
           </Space>
+          
+          {/* Exception App Names Section */}
+          <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#fff7e6', borderRadius: '8px', border: '2px dashed #ffa940' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <Text strong style={{ fontSize: '15px', color: '#fa8c16' }}>
+                ⚠️ Exception App Names (Optional)
+              </Text>
+            </div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: '12px', fontSize: '13px' }}>
+              Apps starting with these names will be included even if App Owner is "None". 
+              <br />
+              Default exceptions: <Tag color="orange">User Guide</Tag> <Tag color="orange">E_manual</Tag>
+              <br />
+              Enter additional app names below (comma-separated):
+            </Text>
+            <Input.TextArea
+              placeholder="e.g., Test App, Demo App, Sample App (separate multiple names with commas)"
+              value={exceptionAppNames}
+              onChange={(e) => setExceptionAppNames(e.target.value)}
+              rows={3}
+              size="large"
+              style={{ width: '100%' }}
+            />
+            {exceptionAppNames && (
+              <div style={{ marginTop: '8px' }}>
+                <Text type="success" style={{ fontSize: '12px' }}>
+                  ✓ {exceptionAppNames.split(',').filter(name => name.trim()).length} additional exception(s) entered
+                </Text>
+              </div>
+            )}
+          </div>
           
           <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#e6f7ff', borderRadius: '4px', border: '1px solid #91d5ff' }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
