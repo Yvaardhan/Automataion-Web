@@ -33,7 +33,8 @@ CORS(app)  # Enable CORS for React frontend
 latest_data = {
     'master_df': None,
     'excel_bytes': None,
-    'statistics': None
+    'statistics': None,
+    'dark_red_cells': {}
 }
 
 # Constants
@@ -411,35 +412,12 @@ def highlight_missing_packages(master_excel_file, model_package_map, master_df):
             print("⚠️ Warning: RPM Spec Name column not found in Master Excel")
             return
         
-        # Get all RPM Spec Names from Master Excel
-        master_rpm_specs = set(master_df["RPM Spec Name"].dropna().astype(str).str.strip())
+        # Note: This function previously added new rows for RPM Spec Names found in package URLs
+        # but not in Master Excel. This logic has been removed as per user requirement.
+        # Now, missing RPM Spec Name detection is only handled by check_missing_rpm_specs()
+        # which highlights existing Master Excel rows where RPM Spec Name is missing from model package data.
         
-        # Check for missing RPM Spec Names
-        missing_count = 0
-        for rpm_spec_name, models in model_package_map.items():
-            if rpm_spec_name not in master_rpm_specs:
-                missing_count += 1
-                print(f"⚠️ Missing: {rpm_spec_name} (expected in models: {', '.join(models)})")
-                
-                # Add a new row at the end for this missing package
-                new_row_idx = ws.max_row + 1
-                
-                # Set RPM Spec Name in column 2
-                ws.cell(row=new_row_idx, column=rpm_spec_col_idx, value=rpm_spec_name)
-                
-                # Highlight entire row with light red
-                for col_idx in range(1, ws.max_column + 1):
-                    ws.cell(row=new_row_idx, column=col_idx).fill = red_fill
-                
-                # Highlight model cells with dark red
-                for model_name in models:
-                    if model_name in model_col_indices:
-                        col_idx = model_col_indices[model_name]
-                        ws.cell(row=new_row_idx, column=col_idx).fill = dark_red_fill
-                        ws.cell(row=new_row_idx, column=col_idx, value="MISSING")
-        
-        wb.save(master_excel_file)
-        print(f"\n✅ Added {missing_count} missing package rows with highlighting")
+        print(f"\n✅ Missing RPM Spec Name detection completed (only for existing Master Excel rows)")
         
     except Exception as e:
         print(f"Error highlighting missing packages: {str(e)}")
@@ -991,14 +969,9 @@ If you're on Mac/Linux:
             # Small delay after color application
             time.sleep(0.2)
             
-            # Add missing packages to Excel (new rows at bottom)
-            if model_package_map:
-                print("\n" + "="*80)
-                print("➕ ADDING COMPLETELY MISSING PACKAGES AS NEW ROWS")
-                print("="*80)
-                highlight_missing_packages(master_excel_file, model_package_map, master_df)
-                # Small delay after highlighting
-                time.sleep(0.3)
+            # Note: Previously added new rows for missing packages, but this has been disabled
+            # Only existing Master Excel rows are checked for missing RPM Spec Names
+            print("\n✅ RPM Spec Name validation complete (existing rows only)")
             
             # Force garbage collection to release any file handles
             gc.collect()
@@ -1043,8 +1016,9 @@ If you're on Mac/Linux:
             latest_data['master_df'] = master_df
             latest_data['excel_bytes'] = excel_bytes
             latest_data['statistics'] = statistics
+            latest_data['dark_red_cells'] = dark_red_cells
 
-            return True, master_df, excel_bytes, statistics
+            return True, master_df, excel_bytes, statistics, dark_red_cells
 
         except Exception as e:
             print(f"Error in automation: {str(e)}")
@@ -1241,8 +1215,12 @@ def run_automation_endpoint():
         result = run_automation(processed_rows, package_paths, user_exception_apps)
         
         # Handle tuple unpacking based on success
-        if len(result) == 4:
+        if len(result) == 5:
+            success, master_df, excel_bytes, statistics, dark_red_cells = result
+        elif len(result) == 4:
+            # Backward compatibility
             success, master_df, excel_bytes, statistics = result
+            dark_red_cells = {}
         else:
             # Unexpected return format
             return jsonify({
@@ -1254,13 +1232,19 @@ def run_automation_endpoint():
             # Convert DataFrame to JSON-serializable format with color information
             data_dict = master_df.to_dict('records')
             
-            # Add color information to each row
-            for row in data_dict:
+            # Add color information and dark red cell info to each row
+            for idx, row in enumerate(data_dict):
                 state_value = row.get('State Value')
                 row['row_color'] = get_row_color(state_value)
                 # Format State Value to show 2.1 instead of 2.1000
                 if pd.notna(state_value):
                     row['State Value'] = float(state_value)
+                
+                # Add dark red cell information for this row
+                if idx in dark_red_cells:
+                    row['dark_red_columns'] = dark_red_cells[idx]
+                else:
+                    row['dark_red_columns'] = []
             
             # Convert column names to list
             columns = master_df.columns.tolist()

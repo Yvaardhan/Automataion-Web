@@ -769,7 +769,28 @@ function App() {
                     key: col,
                     width: 150,
                     ellipsis: true,
-                    render: (text) => text != null ? String(text) : ''
+                    render: (text, record) => {
+                      // Check if this cell should be dark red
+                      const isDarkRed = record.dark_red_columns && record.dark_red_columns.includes(col);
+                      const displayText = text != null ? String(text) : '';
+                      
+                      // Append text for dark red cells
+                      const finalText = isDarkRed && displayText 
+                        ? `${displayText} (DNA App is Present but CL is Missing)` 
+                        : displayText;
+                      
+                      return (
+                        <div style={{
+                          backgroundColor: isDarkRed ? '#8B0000' : 'transparent',
+                          color: isDarkRed ? 'white' : 'inherit',
+                          padding: '4px',
+                          margin: '-4px',
+                          fontWeight: isDarkRed ? 'bold' : 'normal'
+                        }}>
+                          {finalText}
+                        </div>
+                      );
+                    }
                   }))}
                   scroll={{ x: 'max-content', y: 600 }}
                   pagination={{
@@ -903,7 +924,28 @@ function App() {
                       key: col,
                       width: 150,
                       ellipsis: true,
-                      render: (text) => text != null ? String(text) : ''
+                      render: (text, record) => {
+                        // Check if this cell should be dark red
+                        const isDarkRed = record.dark_red_columns && record.dark_red_columns.includes(col);
+                        const displayText = text != null ? String(text) : '';
+                        
+                        // Append text for dark red cells
+                        const finalText = isDarkRed && displayText 
+                          ? `${displayText} (DNA App is Present but CL is Missing)` 
+                          : displayText;
+                        
+                        return (
+                          <div style={{
+                            backgroundColor: isDarkRed ? '#8B0000' : 'transparent',
+                            color: isDarkRed ? 'white' : 'inherit',
+                            padding: '4px',
+                            margin: '-4px',
+                            fontWeight: isDarkRed ? 'bold' : 'normal'
+                          }}>
+                            {finalText}
+                          </div>
+                        );
+                      }
                     })),
                     {
                       title: 'Comment',
