@@ -774,8 +774,9 @@ function App() {
                       const isDarkRed = record.dark_red_columns && record.dark_red_columns.includes(col);
                       const displayText = text != null ? String(text) : '';
                       
-                      // Append text for dark red cells
-                      const finalText = isDarkRed && displayText 
+                      // Append text ONLY if dark red AND has actual version (not "NOT FOUND" or empty)
+                      const hasActualVersion = displayText && displayText.trim() !== '' && displayText !== 'Not Found' && displayText !== 'NOT FOUND';
+                      const finalText = isDarkRed && hasActualVersion
                         ? `${displayText} (DNA App is Present but CL is Missing)` 
                         : displayText;
                       
@@ -929,8 +930,9 @@ function App() {
                         const isDarkRed = record.dark_red_columns && record.dark_red_columns.includes(col);
                         const displayText = text != null ? String(text) : '';
                         
-                        // Append text for dark red cells
-                        const finalText = isDarkRed && displayText 
+                        // Append text ONLY if dark red AND has actual version (not "NOT FOUND" or empty)
+                        const hasActualVersion = displayText && displayText.trim() !== '' && displayText !== 'Not Found' && displayText !== 'NOT FOUND';
+                        const finalText = isDarkRed && hasActualVersion
                           ? `${displayText} (DNA App is Present but CL is Missing)` 
                           : displayText;
                         
