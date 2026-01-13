@@ -321,17 +321,23 @@ function App() {
 
   const handleDownloadExcel = async () => {
     try {
+      console.log('Starting Excel download...');
+      
       // Get filtered data based on current filters
       const filteredData = getFilteredResultsData();
+      console.log('Filtered data:', filteredData ? filteredData.length : 0, 'rows');
       
       if (!filteredData || filteredData.length === 0) {
         message.warning('No data to download after applying filters');
         return;
       }
       
+      console.log('Importing XLSX library...');
       // Import XLSX dynamically
       const XLSX = await import('xlsx');
+      console.log('XLSX library imported successfully');
       
+      console.log('Preparing data for export...');
       // Prepare data with color and dark red cell information
       const dataToExport = filteredData.map(row => {
         const rowData = {};
@@ -351,10 +357,14 @@ function App() {
         rowData['_darkRedCols'] = row.dark_red_columns || [];
         return rowData;
       });
+      console.log('Data prepared:', dataToExport.length, 'rows');
 
+      console.log('Creating worksheet...');
       // Create worksheet
       const ws = XLSX.utils.json_to_sheet(dataToExport, { header: resultsColumns });
+      console.log('Worksheet created');
       
+      console.log('Applying formatting and colors...');
       // Apply formatting and colors
       const range = XLSX.utils.decode_range(ws['!ref']);
       
@@ -396,19 +406,23 @@ function App() {
           });
         }
       }
+      console.log('Formatting applied');
       
       // Set column widths
       ws['!cols'] = resultsColumns.map(() => ({ wch: 20 }));
       
+      console.log('Creating workbook and downloading...');
       // Create workbook and download
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Filtered Results');
       XLSX.writeFile(wb, 'master_Excel_Filtered.xlsx');
       
+      console.log('Excel download completed successfully');
       message.success(`Excel file downloaded successfully! (${filteredData.length} rows)`);
     } catch (error) {
       console.error('Error downloading Excel:', error);
-      message.error('Failed to download Excel file');
+      console.error('Error details:', error.message, error.stack);
+      message.error(`Failed to download Excel file: ${error.message}`);
     }
   };
 
