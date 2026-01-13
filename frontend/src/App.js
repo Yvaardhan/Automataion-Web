@@ -56,6 +56,9 @@ function App() {
   const [dnaAnalysisData, setDnaAnalysisData] = useState([]);
   const [comments, setComments] = useState({});
   const [dnaColorFilter, setDnaColorFilter] = useState('all'); // 'all', '2.1', '2.2'
+  const [pageSize, setPageSize] = useState(50); // Pagination page size
+  const [resultsColorFilter, setResultsColorFilter] = useState('all'); // Filter for main results table
+  const [resultsSearchText, setResultsSearchText] = useState(''); // Text search for main results
   
   // Package Path Modal State
   const [packagePathModalVisible, setPackagePathModalVisible] = useState(false);
@@ -318,20 +321,91 @@ function App() {
 
   const handleDownloadExcel = async () => {
     try {
-      const response = await axios.get('/api/download-excel', {
-        responseType: 'blob'
+      // Get filtered data based on current filters
+      const filteredData = getFilteredResultsData();
+      
+      if (!filteredData || filteredData.length === 0) {
+        message.warning('No data to download after applying filters');
+        return;
+      }
+      
+      // Import XLSX dynamically
+      const XLSX = await import('xlsx');
+      
+      // Prepare data with color and dark red cell information
+      const dataToExport = filteredData.map(row => {
+        const rowData = {};
+        resultsColumns.forEach(col => {
+          // Check if this cell should have appended text
+          const isDarkRed = row.dark_red_columns && row.dark_red_columns.includes(col);
+          const cellValue = row[col];
+          const displayValue = cellValue != null ? String(cellValue) : '';
+          
+          // Append DNA missing CL text for dark red cells with actual versions
+          const hasActualVersion = displayValue && displayValue.trim() !== '' && displayValue !== 'Not Found' && displayValue !== 'NOT FOUND';
+          rowData[col] = isDarkRed && hasActualVersion
+            ? `${displayValue} (DNA App is Present but CL is Missing)`
+            : displayValue;
+        });
+        rowData['_stateValue'] = parseFloat(row['State Value']);
+        rowData['_darkRedCols'] = row.dark_red_columns || [];
+        return rowData;
       });
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(dataToExport, { header: resultsColumns });
       
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'master_Excel.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // Apply formatting and colors
+      const range = XLSX.utils.decode_range(ws['!ref']);
       
-      message.success('Excel file downloaded successfully!');
+      // Color mapping
+      const stateColors = {
+        0.0: { fgColor: { rgb: "90EE90" } },   // Green
+        1.0: { fgColor: { rgb: "D3D3D3" } },   // Gray
+        2.1: { fgColor: { rgb: "FFFF00" } },   // Yellow
+        2.2: { fgColor: { rgb: "FFA500" } },   // Orange
+        3.0: { fgColor: { rgb: "CD5C5C" } }    // Red
+      };
+      
+      const darkRedColor = { fgColor: { rgb: "8B0000" } };
+      
+      // Apply colors to data rows
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const rowData = dataToExport[R - 1];
+        const stateValue = rowData._stateValue;
+        const darkRedCols = rowData._darkRedCols;
+        
+        // Apply row color based on state value
+        if (stateColors[stateValue]) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
+            ws[cellAddress].s = { fill: stateColors[stateValue] };
+          }
+        }
+        
+        // Apply dark red to specific cells
+        if (darkRedCols && darkRedCols.length > 0) {
+          darkRedCols.forEach(colName => {
+            const colIndex = resultsColumns.indexOf(colName);
+            if (colIndex !== -1) {
+              const cellAddress = XLSX.utils.encode_cell({ r: R, c: colIndex });
+              if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
+              ws[cellAddress].s = { fill: darkRedColor, font: { color: { rgb: "FFFFFF" }, bold: true } };
+            }
+          });
+        }
+      }
+      
+      // Set column widths
+      ws['!cols'] = resultsColumns.map(() => ({ wch: 20 }));
+      
+      // Create workbook and download
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Filtered Results');
+      XLSX.writeFile(wb, 'master_Excel_Filtered.xlsx');
+      
+      message.success(`Excel file downloaded successfully! (${filteredData.length} rows)`);
     } catch (error) {
       console.error('Error downloading Excel:', error);
       message.error('Failed to download Excel file');
@@ -339,10 +413,10 @@ function App() {
   };
 
   const handleDNAAnalysis = () => {
-    // Filter data where State Value is 2.1 or 2.2
+    // Filter data where State Value is 2.1, 2.2, or 3.0 (Yellow, Orange, Red)
     const filteredData = resultsData.filter(row => {
       const stateValue = parseFloat(row['State Value']);
-      return stateValue === 2.1 || stateValue === 2.2;
+      return stateValue === 2.1 || stateValue === 2.2 || stateValue === 3.0;
     });
     
     // Add row keys and initialize comments
@@ -368,52 +442,125 @@ function App() {
     setDnaColorFilter('all'); // Reset filter when closing
   };
 
-  const handleDownloadDNAAnalysis = () => {
+  const handleDownloadDNAAnalysis = async () => {
     try {
       // Get filtered data based on color filter
       const filteredData = getFilteredDNAData();
+      
+      // Import XLSX dynamically
+      const XLSX = await import('xlsx');
       
       // Prepare data with comments
       const dataToExport = filteredData.map(row => {
         const rowData = {};
         resultsColumns.forEach(col => {
-          rowData[col] = row[col];
+          // Check if this cell should have appended text
+          const isDarkRed = row.dark_red_columns && row.dark_red_columns.includes(col);
+          const cellValue = row[col];
+          const displayValue = cellValue != null ? String(cellValue) : '';
+          
+          // Append DNA missing CL text for dark red cells with actual versions
+          const hasActualVersion = displayValue && displayValue.trim() !== '' && displayValue !== 'Not Found' && displayValue !== 'NOT FOUND';
+          rowData[col] = isDarkRed && hasActualVersion
+            ? `${displayValue} (DNA App is Present but CL is Missing)`
+            : displayValue;
         });
         rowData['Comment'] = comments[row['App Name']] || '';
+        rowData['_stateValue'] = parseFloat(row['State Value']); // Store for coloring
+        rowData['_darkRedCols'] = row.dark_red_columns || []; // Store dark red columns
         return rowData;
       });
 
-      // Convert to CSV
+      // Create worksheet
       const headers = [...resultsColumns, 'Comment'];
-      const csvContent = [
-        headers.join(','),
-        ...dataToExport.map(row => 
-          headers.map(header => {
-            const value = row[header] || '';
-            // Escape quotes and wrap in quotes if contains comma
-            return typeof value === 'string' && (value.includes(',') || value.includes('\n')) 
-              ? `"${value.replace(/"/g, '""')}"` 
-              : value;
-          }).join(',')
-        )
-      ].join('\n');
-
-      // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'DNA_Analysis_Report.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const ws = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
+      
+      // Apply formatting and colors
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      
+      // Color mapping
+      const stateColors = {
+        2.1: { fgColor: { rgb: "FFFF00" } }, // Yellow
+        2.2: { fgColor: { rgb: "FFA500" } }, // Orange
+        3.0: { fgColor: { rgb: "CD5C5C" } }  // Red
+      };
+      
+      const darkRedColor = { fgColor: { rgb: "8B0000" } };
+      
+      // Apply colors to data rows
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const rowData = dataToExport[R - 1];
+        const stateValue = rowData._stateValue;
+        const darkRedCols = rowData._darkRedCols;
+        
+        // Apply row color based on state value
+        if (stateColors[stateValue]) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
+            ws[cellAddress].s = { fill: stateColors[stateValue] };
+          }
+        }
+        
+        // Apply dark red to specific cells
+        if (darkRedCols && darkRedCols.length > 0) {
+          darkRedCols.forEach(colName => {
+            const colIndex = headers.indexOf(colName);
+            if (colIndex !== -1) {
+              const cellAddress = XLSX.utils.encode_cell({ r: R, c: colIndex });
+              if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
+              ws[cellAddress].s = { fill: darkRedColor, font: { color: { rgb: "FFFFFF" }, bold: true } };
+            }
+          });
+        }
+      }
+      
+      // Set column widths
+      ws['!cols'] = headers.map(() => ({ wch: 20 }));
+      
+      // Remove helper columns from display
+      delete ws['!cols'][headers.indexOf('_stateValue')];
+      delete ws['!cols'][headers.indexOf('_darkRedCols')];
+      
+      // Create workbook and download
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'DNA Analysis');
+      XLSX.writeFile(wb, 'DNA_Analysis_Report.xlsx');
       
       message.success('DNA Analysis report downloaded successfully!');
     } catch (error) {
       console.error('Error downloading DNA Analysis:', error);
       message.error('Failed to download DNA Analysis report');
     }
+  };
+
+  const getFilteredResultsData = () => {
+    if (!resultsData) return [];
+    
+    let filtered = resultsData;
+    
+    // Apply color filter
+    if (resultsColorFilter !== 'all') {
+      const targetStateValue = parseFloat(resultsColorFilter);
+      filtered = filtered.filter(row => {
+        const stateValue = parseFloat(row['State Value']);
+        return stateValue === targetStateValue;
+      });
+    }
+    
+    // Apply text search filter
+    if (resultsSearchText && resultsSearchText.trim() !== '') {
+      const searchLower = resultsSearchText.toLowerCase();
+      filtered = filtered.filter(row => {
+        // Search across all columns
+        return Object.values(row).some(value => {
+          if (value == null) return false;
+          return String(value).toLowerCase().includes(searchLower);
+        });
+      });
+    }
+    
+    return filtered;
   };
 
   const getFilteredDNAData = () => {
@@ -757,10 +904,97 @@ function App() {
                 </Card>
               )}
 
+              {/* Filters Section */}
+              <Card size="small" style={{ backgroundColor: '#fafafa' }}>
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong style={{ marginRight: '10px' }}>Color Filters:</Text>
+                    <Space wrap>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === 'all' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('all')}
+                      >
+                        All ({resultsData ? resultsData.length : 0})
+                      </Button>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === '0' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('0')}
+                        style={resultsColorFilter === '0' ? 
+                          { background: '#90EE90', borderColor: '#90EE90', color: '#000' } : 
+                          { borderColor: '#90EE90', color: '#000' }
+                        }
+                      >
+                        🟩 Green - Match ({resultsData ? resultsData.filter(r => parseFloat(r['State Value']) === 0).length : 0})
+                      </Button>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === '1' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('1')}
+                        style={resultsColorFilter === '1' ? 
+                          { background: '#D3D3D3', borderColor: '#D3D3D3', color: '#000' } : 
+                          { borderColor: '#D3D3D3', color: '#000' }
+                        }
+                      >
+                        ⬜ Gray - Unified DRM ({resultsData ? resultsData.filter(r => parseFloat(r['State Value']) === 1).length : 0})
+                      </Button>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === '2.1' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('2.1')}
+                        style={resultsColorFilter === '2.1' ? 
+                          { background: '#FFFF00', borderColor: '#FFFF00', color: '#000' } : 
+                          { borderColor: '#FFFF00', color: '#000' }
+                        }
+                      >
+                        🟨 Yellow - Missing ({resultsData ? resultsData.filter(r => parseFloat(r['State Value']) === 2.1).length : 0})
+                      </Button>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === '2.2' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('2.2')}
+                        style={resultsColorFilter === '2.2' ? 
+                          { background: '#FFA500', borderColor: '#FFA500', color: '#fff' } : 
+                          { borderColor: '#FFA500', color: '#FFA500' }
+                        }
+                      >
+                        🟧 Orange - Difference ({resultsData ? resultsData.filter(r => parseFloat(r['State Value']) === 2.2).length : 0})
+                      </Button>
+                      <Button
+                        size="small"
+                        type={resultsColorFilter === '3.0' ? 'primary' : 'default'}
+                        onClick={() => setResultsColorFilter('3.0')}
+                        style={resultsColorFilter === '3.0' ? 
+                          { background: '#CD5C5C', borderColor: '#CD5C5C', color: '#fff' } : 
+                          { borderColor: '#CD5C5C', color: '#CD5C5C' }
+                        }
+                      >
+                        🔴 Red - RPM Missing ({resultsData ? resultsData.filter(r => parseFloat(r['State Value']) === 3.0).length : 0})
+                      </Button>
+                    </Space>
+                  </div>
+                  <div>
+                    <Text strong style={{ marginRight: '10px' }}>Search:</Text>
+                    <Input.Search
+                      placeholder="Search in any column..."
+                      value={resultsSearchText}
+                      onChange={(e) => setResultsSearchText(e.target.value)}
+                      onSearch={() => {}} // Filtering happens automatically via getFilteredResultsData
+                      style={{ width: 400 }}
+                      allowClear
+                    />
+                    <Text type="secondary" style={{ marginLeft: '10px' }}>
+                      Showing {getFilteredResultsData().length} of {resultsData ? resultsData.length : 0} rows
+                    </Text>
+                  </div>
+                </Space>
+              </Card>
+
               {/* Results Table */}
               <div className="table-container">
                 <Table
-                  dataSource={resultsData}
+                  dataSource={getFilteredResultsData()}
                   columns={resultsColumns.map(col => ({
                     title: col.split('\n').map((line, i) => (
                       <div key={i} style={{ whiteSpace: 'pre-line', textAlign: 'center' }}>{line}</div>
@@ -795,11 +1029,11 @@ function App() {
                   }))}
                   scroll={{ x: 'max-content', y: 600 }}
                   pagination={{
-                    defaultPageSize: 50,
-                    pageSize: 50,
+                    pageSize: pageSize,
                     showSizeChanger: true,
                     pageSizeOptions: ['50', '100', '200', '500'],
-                    showTotal: (total) => `Total ${total} items`
+                    showTotal: (total) => `Total ${total} items`,
+                    onShowSizeChange: (current, size) => setPageSize(size)
                   }}
                   bordered
                   size="small"
@@ -910,6 +1144,18 @@ function App() {
                     {dnaAnalysisData.filter(row => parseFloat(row['State Value']) === 2.2).length}
                     )
                   </Button>
+                  <Button
+                    type={dnaColorFilter === '3.0' ? 'primary' : 'default'}
+                    onClick={() => setDnaColorFilter('3.0')}
+                    style={dnaColorFilter === '3.0' ? 
+                      { background: '#CD5C5C', borderColor: '#CD5C5C', color: '#fff' } : 
+                      { borderColor: '#CD5C5C', color: '#CD5C5C' }
+                    }
+                  >
+                    🔴 Red - RPM Spec Name Missing (
+                    {dnaAnalysisData.filter(row => parseFloat(row['State Value']) === 3.0).length}
+                    )
+                  </Button>
                 </Space>
               </div>
 
@@ -968,10 +1214,11 @@ function App() {
                   ]}
                   scroll={{ x: 'max-content', y: 600 }}
                   pagination={{
-                    defaultPageSize: 50,
+                    pageSize: pageSize,
                     showSizeChanger: true,
                     pageSizeOptions: ['25', '50', '100', '200'],
-                    showTotal: (total) => `Total ${total} items`
+                    showTotal: (total) => `Total ${total} items`,
+                    onShowSizeChange: (current, size) => setPageSize(size)
                   }}
                   bordered
                   size="small"

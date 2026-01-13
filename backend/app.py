@@ -664,7 +664,15 @@ def apply_row_colors(excel_file_path, dark_red_cells=None):
                 for col_name in column_names:
                     if col_name in header_row:
                         col_idx = header_row[col_name]
-                        ws.cell(row=excel_row_idx, column=col_idx).fill = dark_red_fill
+                        cell = ws.cell(row=excel_row_idx, column=col_idx)
+                        
+                        # Apply dark red fill
+                        cell.fill = dark_red_fill
+                        
+                        # Append text if cell has actual version (not "NOT FOUND" or empty)
+                        current_value = str(cell.value) if cell.value else ''
+                        if current_value and current_value.strip() and current_value not in ['Not Found', 'NOT FOUND', 'None']:
+                            cell.value = f"{current_value} (DNA App is Present but CL is Missing)"
         
         # Save the workbook
         wb.save(excel_file_path)
