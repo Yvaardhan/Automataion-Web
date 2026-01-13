@@ -331,9 +331,10 @@ function App() {
       
       message.loading('Generating colored Excel file...', 0);
       
-      // Send filtered data to backend for colored Excel generation
+      // Send filtered data and column order to backend for colored Excel generation
       const response = await axios.post('/api/download-filtered-excel', {
-        filtered_rows: filteredData
+        filtered_rows: filteredData,
+        column_order: resultsColumns  // Send column order to preserve arrangement
       }, {
         responseType: 'blob'
       });
@@ -405,9 +406,13 @@ function App() {
       
       message.loading('Generating colored DNA Analysis Excel...', 0);
       
+      // Create column order with Comment column at the end
+      const dnaColumns = [...resultsColumns, 'Comment'];
+      
       // Send data to backend for colored Excel generation
       const response = await axios.post('/api/download-filtered-excel', {
-        filtered_rows: dataWithComments
+        filtered_rows: dataWithComments,
+        column_order: dnaColumns  // Send column order including Comment
       }, {
         responseType: 'blob'
       });

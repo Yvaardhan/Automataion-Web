@@ -1344,6 +1344,7 @@ def download_filtered_excel():
     try:
         data = request.json
         filtered_rows = data.get('filtered_rows', [])
+        column_order = data.get('column_order', [])
         
         if not filtered_rows:
             return jsonify({
@@ -1354,11 +1355,17 @@ def download_filtered_excel():
         # Convert to DataFrame
         df = pd.DataFrame(filtered_rows)
         
-        # Remove helper columns if present
-        if '_stateValue' in df.columns:
-            df = df.drop(columns=['_stateValue'])
-        if '_darkRedCols' in df.columns:
-            df = df.drop(columns=['_darkRedCols'])
+        # If column_order is provided, reorder and filter columns
+        if column_order:
+            # Only keep columns that exist in the dataframe and are in column_order
+            valid_columns = [col for col in column_order if col in df.columns]
+            df = df[valid_columns]
+        else:
+            # Remove helper columns if present
+            helper_columns = ['row_color', 'key', 'dark_red_columns', '_stateValue', '_darkRedCols']
+            cols_to_drop = [col for col in helper_columns if col in df.columns]
+            if cols_to_drop:
+                df = df.drop(columns=cols_to_drop)
         
         # Create temporary Excel file
         temp_dir = tempfile.mkdtemp()
