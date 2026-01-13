@@ -321,108 +321,39 @@ function App() {
 
   const handleDownloadExcel = async () => {
     try {
-      console.log('Starting Excel download...');
-      
       // Get filtered data based on current filters
       const filteredData = getFilteredResultsData();
-      console.log('Filtered data:', filteredData ? filteredData.length : 0, 'rows');
       
       if (!filteredData || filteredData.length === 0) {
         message.warning('No data to download after applying filters');
         return;
       }
       
-      console.log('Importing XLSX library...');
-      // Import XLSX dynamically
-      const XLSX = await import('xlsx');
-      console.log('XLSX library imported successfully');
+      message.loading('Generating colored Excel file...', 0);
       
-      console.log('Preparing data for export...');
-      // Prepare data with color and dark red cell information
-      const dataToExport = filteredData.map(row => {
-        const rowData = {};
-        resultsColumns.forEach(col => {
-          // Check if this cell should have appended text
-          const isDarkRed = row.dark_red_columns && row.dark_red_columns.includes(col);
-          const cellValue = row[col];
-          const displayValue = cellValue != null ? String(cellValue) : '';
-          
-          // Append DNA missing CL text for dark red cells with actual versions
-          const hasActualVersion = displayValue && displayValue.trim() !== '' && displayValue !== 'Not Found' && displayValue !== 'NOT FOUND';
-          rowData[col] = isDarkRed && hasActualVersion
-            ? `${displayValue} (DNA App is Present but CL is Missing)`
-            : displayValue;
-        });
-        rowData['_stateValue'] = parseFloat(row['State Value']);
-        rowData['_darkRedCols'] = row.dark_red_columns || [];
-        return rowData;
+      // Send filtered data to backend for colored Excel generation
+      const response = await axios.post('/api/download-filtered-excel', {
+        filtered_rows: filteredData
+      }, {
+        responseType: 'blob'
       });
-      console.log('Data prepared:', dataToExport.length, 'rows');
-
-      console.log('Creating worksheet...');
-      // Create worksheet
-      const ws = XLSX.utils.json_to_sheet(dataToExport, { header: resultsColumns });
-      console.log('Worksheet created');
       
-      console.log('Applying formatting and colors...');
-      // Apply formatting and colors
-      const range = XLSX.utils.decode_range(ws['!ref']);
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'master_Excel_Filtered.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
       
-      // Color mapping
-      const stateColors = {
-        0.0: { fgColor: { rgb: "90EE90" } },   // Green
-        1.0: { fgColor: { rgb: "D3D3D3" } },   // Gray
-        2.1: { fgColor: { rgb: "FFFF00" } },   // Yellow
-        2.2: { fgColor: { rgb: "FFA500" } },   // Orange
-        3.0: { fgColor: { rgb: "CD5C5C" } }    // Red
-      };
-      
-      const darkRedColor = { fgColor: { rgb: "8B0000" } };
-      
-      // Apply colors to data rows
-      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        const rowData = dataToExport[R - 1];
-        const stateValue = rowData._stateValue;
-        const darkRedCols = rowData._darkRedCols;
-        
-        // Apply row color based on state value
-        if (stateColors[stateValue]) {
-          for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-            if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
-            ws[cellAddress].s = { fill: stateColors[stateValue] };
-          }
-        }
-        
-        // Apply dark red to specific cells
-        if (darkRedCols && darkRedCols.length > 0) {
-          darkRedCols.forEach(colName => {
-            const colIndex = resultsColumns.indexOf(colName);
-            if (colIndex !== -1) {
-              const cellAddress = XLSX.utils.encode_cell({ r: R, c: colIndex });
-              if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
-              ws[cellAddress].s = { fill: darkRedColor, font: { color: { rgb: "FFFFFF" }, bold: true } };
-            }
-          });
-        }
-      }
-      console.log('Formatting applied');
-      
-      // Set column widths
-      ws['!cols'] = resultsColumns.map(() => ({ wch: 20 }));
-      
-      console.log('Creating workbook and downloading...');
-      // Create workbook and download
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Filtered Results');
-      XLSX.writeFile(wb, 'master_Excel_Filtered.xlsx');
-      
-      console.log('Excel download completed successfully');
+      message.destroy();
       message.success(`Excel file downloaded successfully! (${filteredData.length} rows)`);
     } catch (error) {
+      message.destroy();
       console.error('Error downloading Excel:', error);
-      console.error('Error details:', error.message, error.stack);
-      message.error(`Failed to download Excel file: ${error.message}`);
+      message.error('Failed to download Excel file');
     }
   };
 
@@ -461,88 +392,40 @@ function App() {
       // Get filtered data based on color filter
       const filteredData = getFilteredDNAData();
       
-      // Import XLSX dynamically
-      const XLSX = await import('xlsx');
-      
-      // Prepare data with comments
-      const dataToExport = filteredData.map(row => {
-        const rowData = {};
-        resultsColumns.forEach(col => {
-          // Check if this cell should have appended text
-          const isDarkRed = row.dark_red_columns && row.dark_red_columns.includes(col);
-          const cellValue = row[col];
-          const displayValue = cellValue != null ? String(cellValue) : '';
-          
-          // Append DNA missing CL text for dark red cells with actual versions
-          const hasActualVersion = displayValue && displayValue.trim() !== '' && displayValue !== 'Not Found' && displayValue !== 'NOT FOUND';
-          rowData[col] = isDarkRed && hasActualVersion
-            ? `${displayValue} (DNA App is Present but CL is Missing)`
-            : displayValue;
-        });
-        rowData['Comment'] = comments[row['App Name']] || '';
-        rowData['_stateValue'] = parseFloat(row['State Value']); // Store for coloring
-        rowData['_darkRedCols'] = row.dark_red_columns || []; // Store dark red columns
-        return rowData;
-      });
-
-      // Create worksheet
-      const headers = [...resultsColumns, 'Comment'];
-      const ws = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
-      
-      // Apply formatting and colors
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      
-      // Color mapping
-      const stateColors = {
-        2.1: { fgColor: { rgb: "FFFF00" } }, // Yellow
-        2.2: { fgColor: { rgb: "FFA500" } }, // Orange
-        3.0: { fgColor: { rgb: "CD5C5C" } }  // Red
-      };
-      
-      const darkRedColor = { fgColor: { rgb: "8B0000" } };
-      
-      // Apply colors to data rows
-      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        const rowData = dataToExport[R - 1];
-        const stateValue = rowData._stateValue;
-        const darkRedCols = rowData._darkRedCols;
-        
-        // Apply row color based on state value
-        if (stateColors[stateValue]) {
-          for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-            if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
-            ws[cellAddress].s = { fill: stateColors[stateValue] };
-          }
-        }
-        
-        // Apply dark red to specific cells
-        if (darkRedCols && darkRedCols.length > 0) {
-          darkRedCols.forEach(colName => {
-            const colIndex = headers.indexOf(colName);
-            if (colIndex !== -1) {
-              const cellAddress = XLSX.utils.encode_cell({ r: R, c: colIndex });
-              if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
-              ws[cellAddress].s = { fill: darkRedColor, font: { color: { rgb: "FFFFFF" }, bold: true } };
-            }
-          });
-        }
+      if (!filteredData || filteredData.length === 0) {
+        message.warning('No data to download');
+        return;
       }
       
-      // Set column widths
-      ws['!cols'] = headers.map(() => ({ wch: 20 }));
+      // Add comments to the data
+      const dataWithComments = filteredData.map(row => ({
+        ...row,
+        Comment: comments[row['App Name']] || ''
+      }));
       
-      // Remove helper columns from display
-      delete ws['!cols'][headers.indexOf('_stateValue')];
-      delete ws['!cols'][headers.indexOf('_darkRedCols')];
+      message.loading('Generating colored DNA Analysis Excel...', 0);
       
-      // Create workbook and download
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'DNA Analysis');
-      XLSX.writeFile(wb, 'DNA_Analysis_Report.xlsx');
+      // Send data to backend for colored Excel generation
+      const response = await axios.post('/api/download-filtered-excel', {
+        filtered_rows: dataWithComments
+      }, {
+        responseType: 'blob'
+      });
       
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'DNA_Analysis_Report.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      message.destroy();
       message.success('DNA Analysis report downloaded successfully!');
     } catch (error) {
+      message.destroy();
       console.error('Error downloading DNA Analysis:', error);
       message.error('Failed to download DNA Analysis report');
     }

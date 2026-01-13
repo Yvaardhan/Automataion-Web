@@ -1335,6 +1335,98 @@ def download_excel():
         }), 500
 
 
+@app.route('/api/download-filtered-excel', methods=['POST'])
+def download_filtered_excel():
+    """
+    Endpoint to download filtered Excel with proper color coding.
+    Accepts filtered row data from frontend and generates colored Excel.
+    """
+    try:
+        data = request.json
+        filtered_rows = data.get('filtered_rows', [])
+        
+        if not filtered_rows:
+            return jsonify({
+                "success": False,
+                "message": "No filtered data provided"
+            }), 400
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(filtered_rows)
+        
+        # Remove helper columns if present
+        if '_stateValue' in df.columns:
+            df = df.drop(columns=['_stateValue'])
+        if '_darkRedCols' in df.columns:
+            df = df.drop(columns=['_darkRedCols'])
+        
+        # Create temporary Excel file
+        temp_dir = tempfile.mkdtemp()
+        temp_excel_path = os.path.join(temp_dir, 'filtered_excel.xlsx')
+        
+        try:
+            # Write DataFrame to Excel
+            df.to_excel(temp_excel_path, index=False, engine='openpyxl')
+            
+            # Extract dark_red_cells from original filtered_rows
+            dark_red_cells = {}
+            for idx, row in enumerate(filtered_rows):
+                if 'dark_red_columns' in row and row['dark_red_columns']:
+                    dark_red_cells[idx] = row['dark_red_columns']
+            
+            # Apply colors using openpyxl
+            apply_row_colors(temp_excel_path, dark_red_cells)
+            
+            # Read the colored Excel file
+            with open(temp_excel_path, 'rb') as f:
+                excel_bytes = f.read()
+            
+            # Create BytesIO object
+            excel_io = io.BytesIO(excel_bytes)
+            excel_io.seek(0)
+            
+            # Clean up temp file
+            try:
+                os.remove(temp_excel_path)
+                os.rmdir(temp_dir)
+            except:
+                pass
+            
+            # Send file
+            try:
+                return send_file(
+                    excel_io,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    as_attachment=True,
+                    download_name='master_Excel_Filtered.xlsx'
+                )
+            except TypeError:
+                return send_file(
+                    excel_io,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    as_attachment=True,
+                    attachment_filename='master_Excel_Filtered.xlsx'
+                )
+        except Exception as e:
+            # Clean up on error
+            try:
+                if os.path.exists(temp_excel_path):
+                    os.remove(temp_excel_path)
+                if os.path.exists(temp_dir):
+                    os.rmdir(temp_dir)
+            except:
+                pass
+            raise e
+            
+    except Exception as e:
+        print(f"Error generating filtered Excel: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Failed to generate Excel: {str(e)}"
+        }), 500
+
+
 @app.route('/api/get-data', methods=['GET'])
 def get_data():
     """
